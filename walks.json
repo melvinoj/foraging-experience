@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "featured": "morning-sunshine-gresgen-to-adelsberg",
+  "walks": [
+    {
+      "slug": "morning-sunshine-gresgen-to-adelsberg",
+      "title": "Morning sunshine Gresgen to Adelsberg",
+      "url": "w/morning-sunshine-gresgen-to-adelsberg/",
+      "published_at": "2026-10-22T19:12:47+02:00",
+      "content_digest": "a29d0ecd893edbdbfe64623c52066f05df93413908241990f56dad5bd8efd550",
+      "species": 64,
+      "stops": 59,
+      "distance_km": 7.6,
+      "image": "w/morning-sunshine-gresgen-to-adelsberg/photos/93.jpg"
+    },
+    {
+      "slug": "rummelsbuhl-foray",
+      "title": "Rümmelsbühl foray",
+      "url": "w/rummelsbuhl-foray/",
+      "published_at": "2026-10-21T19:00:10+02:00",
+      "content_digest": "6b3b5224304e80a9303661f14907257a2dc850d1e92f57481cf66b73f22f6525",
+      "species": 63,
+      "stops": 31,
+      "distance_km": 3.0,
+      "image": "w/rummelsbuhl-foray/photos/93.jpg"
+    }
+  ]
+}

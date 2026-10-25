@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>Rümmelsbühl foray</title>
+<link rel="canonical" href="https://melvinoj.github.io/foraging-experience/w/rummelsbuhl-foray/">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+<style>
+/* ════ App styles — copied from the app at build time (app_styles.py) ════ */
+/* ── frontend/static/css/tokens.css :root (verbatim) ── */
+:root {
+  /* Colour */
+  --ink:         #1E2A22;
+  --ground:      #EEF0EA;
+  --paper:       #FDFDFB;
+  --moss:        #5A6B58;
+  --moss-light:  #8A9884;
+  --leaf:        #7E9471;
+  --leaf-pale:   #C9D2BC;
+  --hairline:    #D8DCD2;
+  --damson:      #5B3A4E;
+  --amber:       #C89B3C;
+  --water:       #6E8FA8;
+  --alert:       #B0524A;
+
+  /* Type */
+  --font-display: Georgia, 'Times New Roman', serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  /* Layout */
+  --touch-min: 44px;
+}
+/* ── app shell colours: species.html body {'background': '#2a3330', 'color': '#d8e4d8'}, lists.html body {'background': '#1e2b28', 'color': '#d8e4d8'} ── */
+:root { --app-shell:#2a3330; --app-shell-deep:#1e2b28; --app-text:#d8e4d8; --app-toxic:#dc2626; --app-forest:#2d5016; --app-heading:#8ab87a; }
+/* index.html */
+.walk-stop-card {
+      background: #f8fdf4; border: 1px solid #d8e8c8;
+      border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+    }
+/* index.html */
+.walk-stop-num {
+      display: inline-block; min-width: 22px; height: 22px; padding: 0 4px; box-sizing: border-box;
+      background: #2d5016; color: white; border-radius: 11px;   /* pill: fits "12a" */
+      font-size: 0.7rem; font-weight: 700;
+      text-align: center; line-height: 22px;
+      margin-right: 7px; flex-shrink: 0; vertical-align: middle;
+    }
+/* index.html */
+.walk-stop-species { font-size: 0.82rem; font-weight: 600; color: #2d5016; }
+/* index.html */
+.walk-stop-common  { font-size: 0.75rem; color: #666; margin-top: 2px; }
+/* index.html */
+.walk-stop-meta    { font-size: 0.72rem; color: #999; margin-top: 2px; }
+/* index.html */
+.walk-stop-recipe  {
+      margin-top: 6px; padding: 5px 8px;
+      background: #fffbe6; border-left: 3px solid #e5a800;
+      border-radius: 0 4px 4px 0; font-size: 0.73rem; color: #6b5200;
+    }
+/* index.html */
+.walk-stop-recipe strong { color: #e5a800; }
+/* index.html */
+.walk-header h3 { font-size: 0.9rem; color: #2d5016; margin-bottom: 2px; }
+/* index.html */
+.walk-header .walk-sub { font-size: 0.75rem; color: #888; }
+/* species.html */
+.species-card {
+      background: #344440; border: 1px solid #4a5e5a; border-radius: 8px;
+      padding: 14px; cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s;
+      text-decoration: none; color: inherit; display: block;
+    }
+/* species.html */
+.species-card .common { font-size: 0.95rem; font-weight: 700; color: #a8c88a; margin-bottom: 2px; }
+/* species.html */
+.species-card .sci-name { font-size: 0.78rem; font-weight: 400; font-style: italic; color: #5a7a3a; }
+/* species.html */
+.species-card .common-de { font-size: 0.75rem; color: #7a6530; font-style: italic; margin-top: 1px; }
+/* species.html */
+.species-card .family { font-size: 0.75rem; color: #888; margin-top: 4px; }
+/* species.html */
+.species-card .warn-badge {
+      display: inline-block; margin-top: 6px; margin-left: 4px;
+      background: #f8d7da; color: #842029; font-size: 0.72rem;
+      padding: 2px 7px; border-radius: 10px;
+    }
+/* species.html */
+.species-card .toxic-badge {
+      display: inline-block; margin-top: 6px; margin-left: 4px;
+      background: #dc2626; color: #fff; font-size: 0.72rem;
+      padding: 2px 7px; border-radius: 10px; font-weight: 600;
+    }
+/* species.html */
+#list-view h2 { font-size: 1.3rem; color: #8ab87a; margin-bottom: 4px; }
+/* species.html */
+#list-view .subtitle { font-size: 0.85rem; color: #7a9a7a; margin-bottom: 16px; }
+
+/* Edibility badges — colours read from index.html renderWalkPanel() at build time */
+.badge { display:inline-block; font-size:0.68rem; padding:1px 6px; border-radius:4px;
+  font-weight:600; background:#f3f3f3; color:#555; }
+.badge.toxic, .badge.deadly { background:#dc2626; color:#fff; font-weight:700; }
+.badge.edible   { background:#d1f5da; color:#166534; }
+.badge.inedible { background:#fef3c7; color:#854d0e; }
+/* Apiaceae ID card + "toxicity unknown" (fail closed): species.html .warn-badge colours */
+.badge.apiaceae, .badge.unknown { background:#f8d7da; color:#842029; font-weight:700; }
+/* caution: the walk panel has no caution colour — use the app's --amber token */
+.badge.caution  { background:var(--amber); color:var(--ink); }
+
+
+/* ════ Page layout — composes the app's tokens and classes ════ */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--app-shell); color: var(--app-text); font-family: var(--font-ui);
+    line-height: 1.45; overflow-x: hidden; }
+  /* Page images only — never Leaflet's tiles/markers (Leaflet sizes those itself). */
+  img:not(.leaflet-container img) { max-width: 100%; display: block; }
+  a { color: var(--leaf-pale); }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+
+  header.hero { background: var(--app-shell-deep); padding: 26px 0 20px; border-bottom: 2px solid var(--app-forest); }
+  .hero h1 { font-family: var(--font-display); font-weight: 400; color: var(--app-heading);
+    font-size: clamp(1.5rem, 5vw, 2.1rem); line-height: 1.2; margin: 0 0 8px; }
+  .hero p { margin: 0 0 12px; max-width: 62ch; }
+  .hero p.de { font-family: var(--font-display); color: var(--leaf-pale); font-size: 1.05rem; margin-top: -4px; }
+  .hero p.where { font-size: 0.85rem; color: var(--leaf-pale); margin-bottom: 6px; }
+  .hero p[hidden] { display: none; }
+  .meta { font-size: 0.8rem; color: var(--moss-light); margin-bottom: 16px; }
+  .cta { display: inline-flex; align-items: center; min-height: var(--touch-min); padding: 0 20px;
+    background: var(--app-forest); color: var(--paper); border-radius: 7px; font-weight: 600;
+    text-decoration: none; border: 1.5px solid var(--leaf); }
+  .cta:hover { background: var(--moss); }
+
+  nav.tabs { position: sticky; top: 0; z-index: 1000; background: var(--app-shell-deep);
+    border-bottom: 1px solid rgba(255,255,255,.08); }
+  .tabs .wrap { display: flex; }
+  .tab { flex: 1; min-height: var(--touch-min); appearance: none; border: 0; background: none;
+    font: 600 0.9rem var(--font-ui); color: var(--moss-light); border-bottom: 3px solid transparent; cursor: pointer; }
+  .tab[aria-selected="true"] { color: var(--leaf-pale); border-bottom-color: var(--leaf); }
+
+  section.panel { padding: 18px 0 28px; }
+  section.panel[hidden] { display: none; }
+  #list-view h2 { font-family: var(--font-display); font-weight: 400; }
+
+  /* Square corners on purpose: border-radius + Leaflet's overflow:hidden makes Chrome
+     composite the tile layer as a clipped layer, a known source of hairline tile seams. */
+  #map { height: 58vh; min-height: 300px; border: 1px solid rgba(255,255,255,.12); }
+  /* Leaflet's default container colour is #ddd; any hairline gap between tiles
+     (fractional-pixel tile positions) shows that through as a near-white grid line.
+     Dark here so a gap, if any, matches the page instead. */
+  .leaflet-container { background: var(--app-shell-deep); }
+  .leaflet-container img { box-sizing: content-box; }
+  /* Tile seams: on this page the map sits at a fractional pixel position (58vh height,
+     text above with non-integer line heights), so 256px tiles can leave hairline gaps
+     that show the container colour (seen as dark lines, 15 Oct 2026). Fix: overlap
+     each tile by half a pixel so no gap can open. Leaflet 1.9.4's plus-lighter blending
+     would ADD colours in that overlap (a bright line), so tiles use normal blending —
+     the overlap simply covers. */
+  .leaflet-container img.leaflet-tile { mix-blend-mode: normal;
+    width: 256.5px !important; height: 256.5px !important; }
+  .stop-pin { width: 26px; height: 26px; border-radius: 50%; background: var(--app-forest); color: #fff;
+    font: 700 12px/26px var(--font-ui); text-align: center; border: 2px solid var(--paper);
+    box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+
+  .stops { margin-top: 16px; }
+  .stop-head { display: flex; align-items: center; gap: 2px; cursor: pointer; min-height: 28px;
+    color: var(--ink); font-size: 0.8rem; font-weight: 600; }
+  .stop-head .badge { margin-left: 6px; }
+  .walk-stop-sp { display: flex; gap: 10px; align-items: flex-start; margin-top: 8px; }
+  .walk-stop-sp + .walk-stop-sp { border-top: 1px dashed #e3ead7; padding-top: 8px; }
+  .walk-stop-sp img, .walk-stop-sp .noimg { width: 52px; height: 52px; border-radius: 6px; object-fit: cover;
+    flex: 0 0 auto; background: var(--leaf-pale); }
+  .walk-stop-species { font-family: var(--font-display); font-style: italic; }
+  .walk-stop-also { font-size: 0.82rem; margin-top: 6px; color: #556040; }
+  .walk-stop-also .badge { margin-right: 2px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 4px; }
+  .chip { min-height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid rgba(255,255,255,.18);
+    background: transparent; color: var(--leaf-pale); font: 600 .82rem var(--font-ui); cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--app-forest); border-color: var(--leaf); color: var(--paper); }
+  .species-card.pick { cursor: pointer; }
+  .species-card.pick:focus-visible { outline: 3px solid var(--leaf); outline-offset: 2px; }
+  .species-card[hidden] { display: none; }
+
+  body.sp-open { overflow: hidden; }
+  .sp-scrim { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 1500; }
+  .sp-panel { position: fixed; z-index: 1600; left: 0; right: 0; bottom: 0; max-height: 90vh; overflow-y: auto;
+    background: var(--app-shell); border-top: 2px solid var(--app-forest); border-radius: 14px 14px 0 0;
+    box-shadow: 0 -6px 24px rgba(0,0,0,.4); padding: 0 0 20px; }
+  .sp-panel[hidden], .sp-scrim[hidden] { display: none; }
+  @media (min-width: 760px) {
+    .sp-panel { left: 50%; right: auto; bottom: auto; top: 50%; transform: translate(-50%, -50%);
+      width: min(640px, 92vw); max-height: 88vh; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); }
+  }
+  .sp-close { position: sticky; top: 8px; float: right; margin: 8px 8px -52px 0; z-index: 2;
+    width: var(--touch-min); height: var(--touch-min); border-radius: 50%; border: 0;
+    background: rgba(30,43,40,.85); color: var(--paper); font-size: 1.1rem; cursor: pointer; }
+  .sp-main { width: 100%; max-height: 52vh; object-fit: cover; cursor: zoom-in; background: var(--app-shell-deep); }
+  .sp-thumbs { display: flex; gap: 8px; padding: 10px 16px 0; overflow-x: auto; }
+  .sp-thumb { flex: 0 0 auto; width: 64px; height: 64px; padding: 0; border: 2px solid transparent; border-radius: 6px;
+    background: none; cursor: pointer; overflow: hidden; }
+  .sp-thumb.on { border-color: var(--leaf); }
+  .sp-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .sp-text.species-card { background: none; border: 0; padding: 12px 16px 0; cursor: default; }
+  .sp-text .common { font-size: 1.3rem; }
+  .sp-text .badge { margin-top: 8px; }
+
+  #tree-frame-wrap { height: 70vh; min-height: 360px; border-radius: 8px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,.12); background: var(--app-shell-deep); }
+  #tree-frame-wrap iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); margin-top: 16px; }
+  .grid .species-card { padding: 0; overflow: hidden; cursor: default; }
+  .grid .species-card.toxic { border: 2px solid var(--app-toxic); }
+  .species-card .photo { aspect-ratio: 4 / 3; width: 100%; object-fit: cover; background: var(--app-shell-deep); cursor: zoom-in; }
+  .species-card .body { padding: 12px 14px 14px; }
+  .species-card .common { font-family: var(--font-display); font-weight: 400; font-size: 1.05rem; }
+  .species-card .badge { margin-top: 6px; }
+  .warn { margin-top: 8px; font-size: 0.8rem; border-radius: 0 6px 6px 0; padding: 7px 9px; line-height: 1.4; }
+  .warn.toxic { background: rgba(220,38,38,.14); color: #fecaca; border-left: 3px solid var(--app-toxic); }
+  .warn.lookalike { background: rgba(200,155,60,.14); color: #f3e2bb; border-left: 3px solid var(--amber); }
+  .warn.caution { background: rgba(200,155,60,.14); color: #f3e2bb; border-left: 3px solid var(--amber); }
+  .warn strong { display: block; margin-bottom: 2px; }
+  .species-card .walk-stop-recipe { margin: 8px 0 0; }
+  .walk-stop-recipe .line { margin-top: 3px; font-style: italic; line-height: 1.4; }
+  .note-box { background: var(--app-shell-deep); border-left: 3px solid var(--amber); border-radius: 0 6px 6px 0;
+    padding: 9px 12px; color: var(--leaf-pale); font-weight: 600; margin: 0; }
+
+  footer { background: var(--app-shell-deep); border-top: 2px solid var(--app-forest); padding: 22px 0 36px;
+    font-size: 0.8rem; color: var(--moss-light); }
+  footer h2 { font-family: var(--font-display); font-weight: 400; font-size: 1rem; color: var(--app-heading); margin: 0 0 8px; }
+  footer p { margin: 0 0 10px; }
+  .footer-links { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 14px; }
+  .footer-links a { display: inline-flex; align-items: center; min-height: var(--touch-min); }
+  .placeholder { color: var(--alert); font-weight: 700; }
+
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.9); z-index: 2000; display: none;
+    align-items: center; justify-content: center; padding: 16px; }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-height: 90vh; border-radius: 8px; }
+  .leaflet-popup-content { margin: 10px 12px; min-width: 210px; font-family: var(--font-ui); }
+  .locate-btn { width: var(--touch-min); height: var(--touch-min); border-radius: 6px; border: 2px solid rgba(0,0,0,.2);
+    background: var(--paper); color: var(--ink); font-size: 22px; line-height: 1; cursor: pointer; }
+  .locate-btn:disabled { opacity: .5; }
+  .leaflet-control-layers { font-family: var(--font-ui); }
+  .leaflet-popup-content .walk-stop-sp:first-of-type { margin-top: 4px; }
+</style>
+</head>
+<body><nav id="walk-collection-link" aria-label="Walk collection" style="padding:12px 16px;background:#1e2b28;color:#d8e4d8"><a href="../../" style="color:inherit">← All walks</a></nav>
+<header class="hero">
+  <div class="wrap">
+    <h1 id="title"></h1>
+    <p class="de" id="title-de" lang="de" hidden></p>
+    <p id="intro"></p>
+    <p id="intro-de" lang="de" hidden></p>
+    <p class="where" id="where" hidden></p>
+    <p class="where" id="where-de" lang="de" hidden></p>
+    <div class="meta" id="meta"></div>
+    <a class="cta" id="cta" href="#" target="_top" rel="noopener"></a>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Sections">
+  <div class="wrap" role="tablist">
+    <button class="tab" role="tab" id="tab-walk" aria-controls="panel-walk" aria-selected="true">Walk</button>
+    <button class="tab" role="tab" id="tab-plants" aria-controls="panel-plants" aria-selected="false">Plants</button>
+    <button class="tab" role="tab" id="tab-recipes" aria-controls="panel-recipes" aria-selected="false">Recipes</button>
+    <button class="tab" role="tab" id="tab-taxonomy" aria-controls="panel-taxonomy" aria-selected="false">Taxonomy</button>
+  </div>
+</nav>
+
+<main id="list-view">
+  <section class="panel" id="panel-walk" role="tabpanel" aria-labelledby="tab-walk">
+    <div class="wrap">
+      <h2>The route</h2>
+      <p class="subtitle">Numbered stops follow the walk.</p>
+      <div id="map" role="region" aria-label="Walk map"></div>
+      <div class="stops walk-stops" id="stops"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-plants" role="tabpanel" aria-labelledby="tab-plants" hidden>
+    <div class="wrap">
+      <h2>Plants on this walk</h2>
+      <p class="subtitle">Tap a plant for more photos and details.</p>
+      <div class="chips" role="group" aria-label="Filter plants">
+        <button class="chip" data-filter="all" aria-pressed="true">All</button>
+        <button class="chip" data-filter="edible" aria-pressed="false">Edible</button>
+        <button class="chip" data-filter="caution" aria-pressed="false">Caution</button>
+        <button class="chip" data-filter="toxic" aria-pressed="false">☠ Toxic</button>
+      </div>
+      <div class="grid" id="species-grid"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-recipes" role="tabpanel" aria-labelledby="tab-recipes" hidden>
+    <div class="wrap">
+      <h2>From the walk to the plate</h2>
+      <p class="note-box">A taste of what we cook — full recipes on the day.</p>
+      <div class="grid" id="recipe-grid"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-taxonomy" role="tabpanel" aria-labelledby="tab-taxonomy" hidden>
+    <div class="wrap">
+      <h2>Family tree</h2>
+      <p class="subtitle">How everything we meet on the way is related. Tap a branch to open it, tap a species for its photo.</p>
+      <div id="tree-frame-wrap"></div>
+    </div>
+  </section>
+</main>
+
+<div class="sp-scrim" id="sp-scrim" hidden></div>
+<div class="sp-panel" id="sp-panel" role="dialog" aria-modal="true" aria-labelledby="sp-panel-title" hidden>
+  <button class="sp-close" id="sp-close" aria-label="Close">✕</button>
+  <div id="sp-panel-body"></div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <h2 id="disclaimer-h"></h2>
+    <div id="disclaimer"></div>
+    <div class="footer-links" id="footer-links"></div>
+  </div>
+</footer>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-label="Photo"><img alt=""></div>
+
+<script>
+window.DATA = {"title": "Rümmelsbühl foray", "title_de": "", "intro": "", "intro_de": "", "where": "", "where_de": "", "cta_label": "Book or ask a question", "contact_url": "https://melvinjarman.co.uk/contact", "impressum_url": "https://melvinjarman.co.uk/impressum", "datenschutz_url": "https://melvinjarman.co.uk/datenschutzerklarung/", "walk": {"name": "Rümmelsbühl foray", "distance_m": 2952.0, "duration_min": 36, "line": [[7.826069, 47.703882], [7.826058, 47.703885], [7.825651, 47.704072], [7.825684, 47.704328], [7.825374, 47.70426], [7.825326, 47.70425], [7.825684, 47.704328], [7.825799, 47.704348], [7.825864, 47.70448], [7.825873, 47.704487], [7.826027, 47.704623], [7.82619, 47.70485], [7.826293, 47.704995], [7.826331, 47.705091], [7.826312, 47.7052], [7.826303, 47.705252], [7.826184, 47.705365], [7.82612, 47.705426], [7.826106, 47.705521], [7.826149, 47.70576], [7.82613, 47.70585], [7.82612, 47.705899], [7.826025, 47.706065], [7.82572, 47.706293], [7.825567, 47.706458], [7.825534, 47.706542], [7.825652, 47.706731], [7.825656, 47.706735], [7.825793, 47.706879], [7.826151, 47.707186], [7.826248, 47.707269], [7.826318, 47.70734], [7.826408, 47.707431], [7.826496, 47.707636], [7.826247, 47.707771], [7.826496, 47.707636], [7.82675, 47.707754], [7.826496, 47.707636], [7.826524, 47.707801], [7.826457, 47.707927], [7.826412, 47.708126], [7.826457, 47.707927], [7.826524, 47.707801], [7.826496, 47.707636], [7.82675, 47.707754], [7.826824, 47.707883], [7.826871, 47.708087], [7.826973, 47.708349], [7.826871, 47.708087], [7.826824, 47.707883], [7.82675, 47.707754], [7.826496, 47.707636], [7.826059, 47.707873], [7.825722, 47.708118], [7.825523, 47.70829], [7.825433, 47.708385], [7.825336, 47.708486], [7.825125, 47.708729], [7.824981, 47.708895], [7.82501, 47.708977], [7.82501, 47.709199], [7.825061, 47.709269], [7.82501, 47.709199], [7.82501, 47.708977], [7.824981, 47.708895], [7.824872, 47.709025], [7.824592, 47.709283], [7.824322, 47.709501], [7.824283, 47.709533], [7.824108, 47.709742], [7.824056, 47.709863], [7.823987, 47.710027], [7.823941, 47.710331], [7.823936, 47.710367], [7.823739, 47.710615], [7.823654, 47.710749], [7.823739, 47.710615], [7.823882, 47.710702], [7.823976, 47.71074], [7.824373, 47.710902], [7.824579, 47.710966], [7.824813, 47.711001], [7.825391, 47.711052], [7.824813, 47.711001], [7.824579, 47.710966], [7.824373, 47.710902], [7.823882, 47.710702], [7.823739, 47.710615], [7.823936, 47.710367], [7.823987, 47.710027], [7.824108, 47.709742], [7.824283, 47.709533], [7.824592, 47.709283], [7.824872, 47.709025], [7.824981, 47.708895], [7.82501, 47.708977], [7.82501, 47.709199], [7.825263, 47.709542], [7.825313, 47.709669], [7.825316, 47.70973], [7.82547, 47.709815], [7.8256363888888885, 47.709679166666675], [7.8259083333333335, 47.709186111111116], [7.823757222222222, 47.70872277777778], [7.8235777777777775, 47.70634166666667], [7.823991666666666, 47.70438055555556], [7.826069, 47.703882]], "straight_ranges": [[100, 106]], "stops": [{"n": "1", "lat": 47.70386111111112, "lng": 7.826058333333333, "species": [64, 7], "toxic": false, "repeat": {}}, {"n": "2", "lat": 47.70435291666667, "lng": 7.8253288194444455, "species": [420, 329, 125, 366, 7, 64], "toxic": false, "repeat": {"7": {"first": "1", "badge": null}, "64": {"first": "1", "badge": null}}}, {"n": "3", "lat": 47.70417638888889, "lng": 7.82502361111111, "species": [188, 366, 488, 64, 214], "toxic": false, "repeat": {"366": {"first": "2", "badge": null}, "64": {"first": "1", "badge": null}}}, {"n": "4", "lat": 47.70469166666667, "lng": 7.8254777777777775, "species": [58], "toxic": true, "repeat": {}}, {"n": "5", "lat": 47.70484583333334, "lng": 7.826202777777777, "species": [361, 677, 702], "toxic": false, "repeat": {}}, {"n": "6", "lat": 47.70536388888889, "lng": 7.826182638888888, "species": [58, 420, 293, 376], "toxic": true, "repeat": {"58": {"first": "4", "badge": {"kind": "toxic", "text": "☠ Toxic — do not eat"}}, "420": {"first": "2", "badge": null}}}, {"n": "7", "lat": 47.705844444444445, "lng": 7.826067592592593, "species": [168, 194, 343, 515, 640], "toxic": false, "repeat": {}}, {"n": "8", "lat": 47.70673, "lng": 7.825668333333333, "species": [420], "toxic": false, "repeat": {"420": {"first": "2", "badge": null}}}, {"n": "9", "lat": 47.70721666666667, "lng": 7.826093055555556, "species": [341, 186], "toxic": false, "repeat": {}}, {"n": "10", "lat": 47.70730586419754, "lng": 7.826394444444444, "species": [191, 106, 189], "toxic": true, "repeat": {}}, {"n": "11", "lat": 47.70776574074075, "lng": 7.82624074074074, "species": [35, 164, 190, 817, 186], "toxic": false, "repeat": {"186": {"first": "9", "badge": null}}}, {"n": "12", "lat": 47.707658333333335, "lng": 7.82689074074074, "species": [817], "toxic": false, "repeat": {"817": {"first": "11", "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}}}}, {"n": "13", "lat": 47.70819166666667, "lng": 7.826119444444444, "species": [229], "toxic": false, "repeat": {}}, {"n": "14", "lat": 47.70836944444445, "lng": 7.8268555555555555, "species": [190], "toxic": false, "repeat": {"190": {"first": "11", "badge": null}}}, {"n": "15", "lat": 47.70835992063492, "lng": 7.825375, "species": [107, 93, 193, 178, 210, 380, 186], "toxic": false, "repeat": {"186": {"first": "9", "badge": null}}}, {"n": "16", "lat": 47.708725, "lng": 7.825113888888888, "species": [188, 186, 399, 7, 98, 208], "toxic": false, "repeat": {"188": {"first": "3", "badge": null}, "186": {"first": "9", "badge": null}, "7": {"first": "1", "badge": null}}}, {"n": "17", "lat": 47.70931990740741, "lng": 7.824908796296295, "species": [98, 359, 672, 134], "toxic": false, "repeat": {"98": {"first": "16", "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}}}}, {"n": "18", "lat": 47.70951388888889, "lng": 7.824344444444444, "species": [164], "toxic": false, "repeat": {"164": {"first": "11", "badge": null}}}, {"n": "19", "lat": 47.70986388888889, "lng": 7.824061111111111, "species": [194], "toxic": false, "repeat": {"194": {"first": "7", "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}}}}, {"n": "20", "lat": 47.710329629629626, "lng": 7.823917592592593, "species": [286, 433, 161, 823, 399, 694, 819, 822, 144, 764], "toxic": false, "repeat": {"399": {"first": "16", "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}}}}, {"n": "21", "lat": 47.710752222222226, "lng": 7.8236655555555545, "species": [194, 7, 286, 233, 816], "toxic": false, "repeat": {"194": {"first": "7", "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}}, "7": {"first": "1", "badge": null}, "286": {"first": "20", "badge": null}}}, {"n": "21a", "lat": 47.710033333333335, "lng": 7.815244444444445, "species": [9], "toxic": false, "repeat": {}}, {"n": "22", "lat": 47.710575000000006, "lng": 7.8241249999999996, "species": [93], "toxic": false, "repeat": {"93": {"first": "15", "badge": null}}}, {"n": "23", "lat": 47.71114722222222, "lng": 7.825372222222222, "species": [590], "toxic": false, "repeat": {}}, {"n": "24", "lat": 47.709679166666675, "lng": 7.8256363888888885, "species": [672, 701, 515, 134], "toxic": false, "repeat": {"672": {"first": "17", "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}}, "515": {"first": "7", "badge": null}, "134": {"first": "17", "badge": null}}}, {"n": "25", "lat": 47.709186111111116, "lng": 7.8259083333333335, "species": [293, 27, 710], "toxic": false, "repeat": {"293": {"first": "6", "badge": null}}}, {"n": "26", "lat": 47.70872277777778, "lng": 7.823757222222222, "species": [186, 24, 183], "toxic": true, "repeat": {"186": {"first": "9", "badge": null}}}, {"n": "26a", "lat": 47.70840555555556, "lng": 7.821461111111111, "species": [277], "toxic": false, "repeat": {}}, {"n": "26b", "lat": 47.709180555555555, "lng": 7.8161805555555555, "species": [713], "toxic": false, "repeat": {}}, {"n": "27", "lat": 47.70634166666667, "lng": 7.8235777777777775, "species": [794], "toxic": false, "repeat": {}}, {"n": "28", "lat": 47.70438055555556, "lng": 7.823991666666666, "species": [188], "toxic": false, "repeat": {"188": {"first": "3", "badge": null}}}]}, "species": [{"id": 64, "sci": "Quercus robur", "en": "Common Oak", "de": "Stiel-Eiche", "family": "Fagaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/64.jpg", "thumb": "photos/64_t.jpg", "n_obs": 4, "extra": [{"photo": "photos/64_1.jpg", "thumb": "photos/64_1_t.jpg"}, {"photo": "photos/64_2.jpg", "thumb": "photos/64_2_t.jpg"}, {"photo": "photos/64_3.jpg", "thumb": "photos/64_3_t.jpg"}], "months": [6]}, {"id": 7, "sci": "Prunus avium", "en": "Wild Cherry", "de": "Süsskirsche", "family": "Rosaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/7.jpg", "thumb": "photos/7_t.jpg", "n_obs": 5, "extra": [{"photo": "photos/7_1.jpg", "thumb": "photos/7_1_t.jpg"}, {"photo": "photos/7_2.jpg", "thumb": "photos/7_2_t.jpg"}, {"photo": "photos/7_3.jpg", "thumb": "photos/7_3_t.jpg"}], "months": [4, 5, 6, 7]}, {"id": 420, "sci": "Betula pendula", "en": "Common Birch", "de": "Haenge-Birke", "family": "Betulaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/420.jpg", "thumb": "photos/420_t.jpg", "n_obs": 3, "extra": [{"photo": "photos/420_1.jpg", "thumb": "photos/420_1_t.jpg"}, {"photo": "photos/420_2.jpg", "thumb": "photos/420_2_t.jpg"}], "months": [6, 7, 11]}, {"id": 329, "sci": "Fagus sylvatica", "en": "European Beech", "de": "Rotbuche", "family": "Fagaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/329.jpg", "thumb": "photos/329_t.jpg", "n_obs": 1, "extra": [], "months": [7]}, {"id": 366, "sci": "Picea abies", "en": "Norway Spruce", "de": "Fichte", "family": "Pinaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/366.jpg", "thumb": "photos/366_t.jpg", "n_obs": 5, "extra": [{"photo": "photos/366_1.jpg", "thumb": "photos/366_1_t.jpg"}, {"photo": "photos/366_2.jpg", "thumb": "photos/366_2_t.jpg"}, {"photo": "photos/366_3.jpg", "thumb": "photos/366_3_t.jpg"}], "months": [4, 5, 6, 11]}, {"id": 125, "sci": "Quercus petraea", "en": "Sessile Oak", "de": "Artengruppe Trauben-Eiche", "family": "Fagaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/125.jpg", "thumb": "photos/125_t.jpg", "n_obs": 7, "extra": [{"photo": "photos/125_1.jpg", "thumb": "photos/125_1_t.jpg"}, {"photo": "photos/125_2.jpg", "thumb": "photos/125_2_t.jpg"}, {"photo": "photos/125_3.jpg", "thumb": "photos/125_3_t.jpg"}], "months": [6]}, {"id": 488, "sci": "Pseudotsuga menziesii", "en": "Douglas-fir", "de": "Douglasfichte", "family": "Pinaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/488.jpg", "thumb": "photos/488_t.jpg", "n_obs": 1, "extra": [], "months": [6]}, {"id": 214, "sci": "Leucanthemum vulgare", "en": "Field Daisy", "de": "Wiesenmargerite", "family": "Asteraceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/214.jpg", "thumb": "photos/214_t.jpg", "n_obs": 1, "extra": [], "months": [6]}, {"id": 188, "sci": "Genista sagittalis", "en": "Winged Broom", "de": "Flügel-Ginster", "family": "Fabaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "inedible", "text": "Not for eating"}, "safety": {}, "photo": "photos/188.jpg", "thumb": "photos/188_t.jpg", "n_obs": 7, "extra": [{"photo": "photos/188_1.jpg", "thumb": "photos/188_1_t.jpg"}, {"photo": "photos/188_2.jpg", "thumb": "photos/188_2_t.jpg"}, {"photo": "photos/188_3.jpg", "thumb": "photos/188_3_t.jpg"}], "months": [5, 6]}, {"id": 58, "sci": "Dryopteris filix-mas", "en": "Male fern", "de": "Gemeiner Wurmfarn", "family": "Dryopteridaceae", "kingdom": "Plantae", "toxic": true, "deadly": false, "apiaceae": false, "badge": {"kind": "toxic", "text": "☠ Toxic — do not eat"}, "safety": {"toxic": "Not safe to eat. Please simply appreciate the natural beauty and power of this plant without handling or consuming it."}, "photo": "photos/58.jpg", "thumb": "photos/58_t.jpg", "n_obs": 2, "extra": [{"photo": "photos/58_1.jpg", "thumb": "photos/58_1_t.jpg"}], "months": [6]}, {"id": 361, "sci": "Campanula rotundifolia", "en": "Harebell", "de": "Rundblaettrige Glockenblume", "family": "Campanulaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/361.jpg", "thumb": "photos/361_t.jpg", "n_obs": 3, "extra": [{"photo": "photos/361_1.jpg", "thumb": "photos/361_1_t.jpg"}, {"photo": "photos/361_2.jpg", "thumb": "photos/361_2_t.jpg"}], "months": [7]}, {"id": 702, "sci": "Hypericum × desetangsii", "en": "", "de": "", "family": "Hypericaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}, "safety": {}, "photo": "photos/702.jpg", "thumb": "photos/702_t.jpg", "n_obs": 1, "extra": [], "months": [7]}, {"id": 677, "sci": "Hypericum maculatum", "en": "Spotted St. Johnswort", "de": "", "family": "Hypericaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}, "safety": {}, "photo": "photos/677.jpg", "thumb": "photos/677_t.jpg", "n_obs": 2, "extra": [{"photo": "photos/677_1.jpg", "thumb": "photos/677_1_t.jpg"}], "months": [7]}, {"id": 376, "sci": "Digitalis purpurea", "en": "Foxglove", "de": "Roter Fingerhut", "family": "Plantaginaceae", "kingdom": "Plantae", "toxic": true, "deadly": true, "apiaceae": false, "badge": {"kind": "deadly", "text": "☠ Deadly — do not touch or eat"}, "safety": {"toxic": "Not safe to eat. Please simply appreciate the natural beauty and power of this plant without handling or consuming it."}, "photo": "photos/376.jpg", "thumb": "photos/376_t.jpg", "n_obs": 1, "extra": [], "months": [6]}, {"id": 293, "sci": "Rubus fruticosus", "en": "Shrubby blackberry", "de": "Falten-Brombeere", "family": "Rosaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/293.jpg", "thumb": "photos/293_t.jpg", "n_obs": 2, "extra": [{"photo": "photos/293_1.jpg", "thumb": "photos/293_1_t.jpg"}], "months": [7]}, {"id": 343, "sci": "Abies grandis", "en": "Grand Fir", "de": "Küsten-Tanne", "family": "Pinaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/343.jpg", "thumb": "photos/343_t.jpg", "n_obs": 1, "extra": [], "months": [5]}, {"id": 168, "sci": "Geranium pyrenaicum", "en": "Hedgerow Geranium", "de": "Pyrenäen-Storchschnabel", "family": "Geraniaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/168.jpg", "thumb": "photos/168_t.jpg", "n_obs": 1, "extra": [], "months": [5]}, {"id": 515, "sci": "Capsella bursa-pastoris", "en": "Shepherd's-purse", "de": "Gemeines Hirtentaeschel", "family": "Brassicaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/515.jpg", "thumb": "photos/515_t.jpg", "n_obs": 3, "extra": [{"photo": "photos/515_1.jpg", "thumb": "photos/515_1_t.jpg"}, {"photo": "photos/515_2.jpg", "thumb": "photos/515_2_t.jpg"}], "months": [6, 10]}, {"id": 194, "sci": "Tanacetum vulgare", "en": "Tansy", "de": "Rainfarn", "family": "Asteraceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}, "safety": {}, "photo": "photos/194.jpg", "thumb": "photos/194_t.jpg", "n_obs": 3, "extra": [{"photo": "photos/194_1.jpg", "thumb": "photos/194_1_t.jpg"}, {"photo": "photos/194_2.jpg", "thumb": "photos/194_2_t.jpg"}], "months": [5]}, {"id": 640, "sci": "Rorippa sylvestris", "en": "Yellow Fieldcress", "de": "Artengruppe Wilde Sumpfkresse", "family": "Brassicaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/640.jpg", "thumb": "photos/640_t.jpg", "n_obs": 1, "extra": [], "months": [10]}, {"id": 186, "sci": "Thymus pulegioides", "en": "Large thyme", "de": "Arzneithymian", "family": "Lamiaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/186.jpg", "thumb": "photos/186_t.jpg", "n_obs": 10, "extra": [{"photo": "photos/186_1.jpg", "thumb": "photos/186_1_t.jpg"}, {"photo": "photos/186_2.jpg", "thumb": "photos/186_2_t.jpg"}, {"photo": "photos/186_3.jpg", "thumb": "photos/186_3_t.jpg"}], "months": [5, 6, 10]}, {"id": 341, "sci": "Malva moschata", "en": "Musk mallow", "de": "Moschus-Malve", "family": "Malvaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/341.jpg", "thumb": "photos/341_t.jpg", "n_obs": 4, "extra": [{"photo": "photos/341_1.jpg", "thumb": "photos/341_1_t.jpg"}, {"photo": "photos/341_2.jpg", "thumb": "photos/341_2_t.jpg"}, {"photo": "photos/341_3.jpg", "thumb": "photos/341_3_t.jpg"}], "months": [5, 6]}, {"id": 191, "sci": "Chaerophyllum aureum", "en": "Golden Chervil", "de": "Gold-Kälberkropf", "family": "Apiaceae", "kingdom": "Plantae", "toxic": true, "deadly": false, "apiaceae": true, "badge": {"kind": "toxic", "text": "☠ Toxic — do not eat"}, "safety": {"look_alike": "Conium maculatum (Hemlock) is deadly and shares habitat with Golden Chervil. Key distinctions: Hemlock has distinctive purple-blotched hollow stems with no hair, an unpleasant musty smell when crushed, and smooth hairless leaves. Chaerophyllum aureum has hairy stems, a pleasant anise/carrot scent, and slightly hairy leaves. Never harvest any Apiaceae without positive identification of all distinguishing features. If in doubt, do not harvest.", "toxic": "Not safe to eat. Please simply appreciate the natural beauty and power of this plant without handling or consuming it."}, "photo": "photos/191.jpg", "thumb": "photos/191_t.jpg", "n_obs": 2, "extra": [{"photo": "photos/191_1.jpg", "thumb": "photos/191_1_t.jpg"}], "months": [5]}, {"id": 106, "sci": "Anthriscus sylvestris", "en": "Keck", "de": "Wiesenkerbel", "family": "Apiaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": true, "badge": {"kind": "apiaceae", "text": "Carrot family — deadly look-alikes"}, "safety": {"look_alike": "Conium maculatum (Hemlock) is deadly and shares habitat with Cow Parsley. Primary identifier: leaves — finely divided, fernlike, 2–3 pinnate, bright green, slightly hairy. The stem is the fastest field check: Cow Parsley has a hollow hairy stem with no spotting; Hemlock has a smooth hairless stem with distinctive purple-red blotching. Crushed Cow Parsley leaves smell pleasantly of parsley or anise; Hemlock smells unpleasantly mousy. Never harvest on flowers alone — white umbel flowers are not diagnostic in this family. Confirm hairy stem + unspotted + pleasant smell before any harvest.", "caution": "Young leaves and shoots only, harvested before flowering. Roots are not edible. Never harvest from roadsides or field margins where spraying is likely. Positive identification is essential — this species grows alongside Conium maculatum (Hemlock), and can be confused with Aethusa cynapium (Fool's Parsley). Fool's Parsley is distinguished by its distinctive long, drooping bracts below the flower umbels (absent or short and spreading in Cow Parsley), its unpleasant smell when crushed, and its smaller, more delicate overall appearance. Check for the absence of purple blotching on stems (present in Hemlock) and confirm the pleasant anise-like smell when leaves are crushed."}, "photo": "photos/106.jpg", "thumb": "photos/106_t.jpg", "n_obs": 1, "extra": [], "months": [5]}, {"id": 189, "sci": "Pinus sylvestris", "en": "Scots Pine", "de": "Daehle", "family": "Pinaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/189.jpg", "thumb": "photos/189_t.jpg", "n_obs": 6, "extra": [{"photo": "photos/189_1.jpg", "thumb": "photos/189_1_t.jpg"}, {"photo": "photos/189_2.jpg", "thumb": "photos/189_2_t.jpg"}, {"photo": "photos/189_3.jpg", "thumb": "photos/189_3_t.jpg"}], "months": [5]}, {"id": 164, "sci": "Silene vulgaris", "en": "Bladder campion", "de": "Gemeines Leimkraut", "family": "Caryophyllaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/164.jpg", "thumb": "photos/164_t.jpg", "n_obs": 2, "extra": [{"photo": "photos/164_1.jpg", "thumb": "photos/164_1_t.jpg"}], "months": [5, 6]}, {"id": 190, "sci": "Alchemilla monticola", "en": "Hairy lady's mantle", "de": "Bergwiesen-Frauenmantel", "family": "Rosaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/190.jpg", "thumb": "photos/190_t.jpg", "n_obs": 2, "extra": [{"photo": "photos/190_1.jpg", "thumb": "photos/190_1_t.jpg"}], "months": [5, 6]}, {"id": 35, "sci": "Carex caryophyllea", "en": "Iron-grass", "de": "Frühlings-Segge", "family": "Cyperaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "inedible", "text": "Not for eating"}, "safety": {}, "photo": "photos/35.jpg", "thumb": "photos/35_t.jpg", "n_obs": 1, "extra": [], "months": [3]}, {"id": 817, "sci": "Agaricus campestris", "en": "Meadow Mushroom", "de": "Wiesen-Champignon", "family": "Agaricaceae", "kingdom": "Fungi", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}, "safety": {"look_alike": "Gills pink, then chocolate-brown — never white like the deadly Amanitas. Yellow stainer: bruises chrome yellow at the stem base and smells of ink; it makes people ill."}, "photo": "photos/817.jpg", "thumb": "photos/817_t.jpg", "n_obs": 4, "extra": [{"photo": "photos/817_1.jpg", "thumb": "photos/817_1_t.jpg"}, {"photo": "photos/817_2.jpg", "thumb": "photos/817_2_t.jpg"}, {"photo": "photos/817_3.jpg", "thumb": "photos/817_3_t.jpg"}], "months": [10]}, {"id": 229, "sci": "Hypericum perforatum", "en": "St John's wort", "de": "Elfenblut", "family": "Hypericaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}, "safety": {}, "photo": "photos/229.jpg", "thumb": "photos/229_t.jpg", "n_obs": 1, "extra": [], "months": [7]}, {"id": 107, "sci": "Sambucus nigra", "en": "Elderberry", "de": "Schwarzer Holunder", "family": "Viburnaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "caution", "text": "Edible with caution"}, "safety": {"caution": "Edible with caution — flowers and cooked berries only. Raw berries, leaves, stems and bark are toxic; always cook the berries before eating."}, "photo": "photos/107.jpg", "thumb": "photos/107_t.jpg", "n_obs": 1, "extra": [], "months": [5]}, {"id": 178, "sci": "Aegopodium podagraria", "en": "Goutweed", "de": "Gewöhnlicher Giersch", "family": "Apiaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": true, "badge": {"kind": "apiaceae", "text": "Carrot family — deadly look-alikes"}, "safety": {"look_alike": "At flower, ground elder's white umbels can pass for rough chervil (Chaerophyllum temulum) or, far more dangerously, hemlock (Conium maculatum) — deadly, and sharing the same hedge-bottoms. The leaves settle it: ground elder's are broad and toothed, divided in threes, nothing like the fine fern-like foliage of hemlock. Never harvest any Apiaceae without positive identification of all distinguishing features. If in doubt, do not harvest."}, "photo": "photos/178.jpg", "thumb": "photos/178_t.jpg", "n_obs": 1, "extra": [], "months": [5]}, {"id": 193, "sci": "Stellaria graminea", "en": "Lesser Stitchwort", "de": "Gras-Sternmiere", "family": "Caryophyllaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/193.jpg", "thumb": "photos/193_t.jpg", "n_obs": 1, "extra": [], "months": [5]}, {"id": 210, "sci": "Silene nutans", "en": "Nottingham catchfly", "de": "Gemeines Nickendes Leimkraut", "family": "Caryophyllaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/210.jpg", "thumb": "photos/210_t.jpg", "n_obs": 1, "extra": [], "months": [6]}, {"id": 93, "sci": "Urtica dioica", "en": "Stinging nettle", "de": "Grosse Brennessel", "family": "Urticaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/93.jpg", "thumb": "photos/93_t.jpg", "n_obs": 2, "extra": [{"photo": "photos/93_1.jpg", "thumb": "photos/93_1_t.jpg"}], "months": [5, 10]}, {"id": 380, "sci": "Briza media", "en": "Totter grass", "de": "Zittergras", "family": "Poaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "inedible", "text": "Not for eating"}, "safety": {}, "photo": "photos/380.jpg", "thumb": "photos/380_t.jpg", "n_obs": 1, "extra": [], "months": [6]}, {"id": 208, "sci": "Knautia arvensis", "en": "Bluebuttons", "de": "Acker-Witwenblume", "family": "Caprifoliaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/208.jpg", "thumb": "photos/208_t.jpg", "n_obs": 1, "extra": [], "months": [5]}, {"id": 399, "sci": "Verbascum thapsus", "en": "Great Mullein", "de": "Artengruppe Kleinblütige Königskerze", "family": "Scrophulariaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}, "safety": {}, "photo": "photos/399.jpg", "thumb": "photos/399_t.jpg", "n_obs": 2, "extra": [{"photo": "photos/399_1.jpg", "thumb": "photos/399_1_t.jpg"}], "months": [5, 10]}, {"id": 98, "sci": "Artemisia vulgaris", "en": "Mugwort", "de": "Gemeiner Beifuss", "family": "Asteraceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}, "safety": {"look_alike": "Can be confused with monkshood (Aconitum napellus) before flowering — monkshood is deadly. Check the leaf underside to distinguish: mugwort has a dense, silvery-white hairy underside; monkshood is smooth and green."}, "photo": "photos/98.jpg", "thumb": "photos/98_t.jpg", "n_obs": 4, "extra": [{"photo": "photos/98_1.jpg", "thumb": "photos/98_1_t.jpg"}, {"photo": "photos/98_2.jpg", "thumb": "photos/98_2_t.jpg"}, {"photo": "photos/98_3.jpg", "thumb": "photos/98_3_t.jpg"}], "months": [5, 6, 7]}, {"id": 672, "sci": "Chenopodium ficifolium", "en": "Fig leaf goosefoot", "de": "Feigenblättriger Gänsefuss", "family": "Amaranthaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}, "safety": {}, "photo": "photos/672.jpg", "thumb": "photos/672_t.jpg", "n_obs": 5, "extra": [{"photo": "photos/672_1.jpg", "thumb": "photos/672_1_t.jpg"}, {"photo": "photos/672_2.jpg", "thumb": "photos/672_2_t.jpg"}, {"photo": "photos/672_3.jpg", "thumb": "photos/672_3_t.jpg"}], "months": [6, 7]}, {"id": 134, "sci": "Polygonum aviculare", "en": "Knotgrass", "de": "Vogel-Knöterich", "family": "Polygonaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/134.jpg", "thumb": "photos/134_t.jpg", "n_obs": 3, "extra": [{"photo": "photos/134_1.jpg", "thumb": "photos/134_1_t.jpg"}, {"photo": "photos/134_2.jpg", "thumb": "photos/134_2_t.jpg"}], "months": [6]}, {"id": 359, "sci": "Abies alba", "en": "Silver Fir", "de": "Silbertanne", "family": "Pinaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/359.jpg", "thumb": "photos/359_t.jpg", "n_obs": 1, "extra": [], "months": [6]}, {"id": 161, "sci": "Malus domestica", "en": "Apple", "de": "Apfel", "family": "Rosaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/161.jpg", "thumb": "photos/161_t.jpg", "n_obs": 2, "extra": [{"photo": "photos/161_1.jpg", "thumb": "photos/161_1_t.jpg"}], "months": [6]}, {"id": 286, "sci": "Taraxacum officinale", "en": "Dandelion", "de": "Bettsaier", "family": "Asteraceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/286.jpg", "thumb": "photos/286_t.jpg", "n_obs": 2, "extra": [{"photo": "photos/286_1.jpg", "thumb": "photos/286_1_t.jpg"}], "months": [5]}, {"id": 694, "sci": "Heracleum sibiricum", "en": "Eltrot", "de": "", "family": "Apiaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": true, "badge": {"kind": "apiaceae", "text": "Carrot family — deadly look-alikes"}, "safety": {}, "photo": "photos/694.jpg", "thumb": "photos/694_t.jpg", "n_obs": 1, "extra": [], "months": [10]}, {"id": 823, "sci": "Oenothera biennis", "en": "Evening primrose", "de": "Gemeine Nachtkerze", "family": "Onagraceae", "kingdom": "", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/823.jpg", "thumb": "photos/823_t.jpg", "n_obs": 1, "extra": [], "months": [10]}, {"id": 144, "sci": "Heracleum sphondylium", "en": "Hogweed", "de": "Gemeiner Bärenklau", "family": "Apiaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": true, "badge": {"kind": "apiaceae", "text": "Carrot family — deadly look-alikes"}, "safety": {"look_alike": "Common hogweed sap can cause phototoxic burns on skin contact in sunlight. Harvest with gloves and covered skin, avoid contact with eyes. Do not confuse with giant hogweed (Heracleum mantegazzianum), which causes severe burns and is considerably more dangerous."}, "photo": "photos/144.jpg", "thumb": "photos/144_t.jpg", "n_obs": 1, "extra": [], "months": [10]}, {"id": 433, "sci": "Pyrus communis", "en": "Pear", "de": "Wildbirne", "family": "Rosaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/433.jpg", "thumb": "photos/433_t.jpg", "n_obs": 3, "extra": [{"photo": "photos/433_1.jpg", "thumb": "photos/433_1_t.jpg"}, {"photo": "photos/433_2.jpg", "thumb": "photos/433_2_t.jpg"}], "months": [5]}, {"id": 819, "sci": "Taraxacum erythrospermum", "en": "Rock dandelion", "de": "", "family": "Asteraceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/819.jpg", "thumb": "photos/819_t.jpg", "n_obs": 1, "extra": [], "months": [10]}, {"id": 822, "sci": "Hypochaeris glabra", "en": "Smooth cat's ear", "de": "Kahles Ferkelkraut", "family": "Asteraceae", "kingdom": "", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/822.jpg", "thumb": "photos/822_t.jpg", "n_obs": 1, "extra": [], "months": [10]}, {"id": 764, "sci": "Artemisia absinthium", "en": "Wormwood", "de": "Wermut", "family": "Asteraceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}, "safety": {}, "photo": "photos/764.jpg", "thumb": "photos/764_t.jpg", "n_obs": 1, "extra": [], "months": [10]}, {"id": 816, "sci": "Macrolepiota excoriata", "en": "Frayed Parasol", "de": "", "family": "Agaricaceae", "kingdom": "Fungi", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "caution", "text": "⚠ caution — warning not yet reviewed"}, "safety": {"look_alike": "Deadly small Lepiotas look similar — be certain of the movable ring and cap size; if in doubt, leave it."}, "photo": "photos/816.jpg", "thumb": "photos/816_t.jpg", "n_obs": 1, "extra": [], "months": [10]}, {"id": 233, "sci": "Hypochaeris radicata", "en": "Hairy cat's ear", "de": "Gewöhnliches Ferkelkraut", "family": "Asteraceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/233.jpg", "thumb": "photos/233_t.jpg", "n_obs": 1, "extra": [], "months": [5]}, {"id": 9, "sci": "Daucus carota", "en": "Wild Carrot", "de": "Gewöhnliche Möhre", "family": "Apiaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": true, "badge": {"kind": "apiaceae", "text": "Carrot family — deadly look-alikes"}, "safety": {"look_alike": "Hemlock (Conium maculatum) is deadly and shares wild carrot's ground. The flowers are the clearest tell — wild carrot's flat white umbel often carries a single dark floret at its heart. Hemlock's stem is smooth and round with purple blotches; wild carrot's is ridged and bristly. Never harvest any Apiaceae without positive identification of all distinguishing features. If in doubt, do not harvest."}, "photo": "photos/9.jpg", "thumb": "photos/9_t.jpg", "n_obs": 1, "extra": [], "months": [7]}, {"id": 590, "sci": "Pimpinella major", "en": "Greater Burnet saxifrage", "de": "Grosse Bibernelle", "family": "Apiaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": true, "badge": {"kind": "apiaceae", "text": "Carrot family — deadly look-alikes"}, "safety": {"look_alike": "Cow parsley family — easily confused with toxic relatives including hemlock, fool's watercress, and rough chervil. Confirm identification carefully before any use."}, "photo": "photos/590.jpg", "thumb": "photos/590_t.jpg", "n_obs": 2, "extra": [{"photo": "photos/590_1.jpg", "thumb": "photos/590_1_t.jpg"}], "months": [6]}, {"id": 701, "sci": "Atriplex patula", "en": "Common Orache", "de": "", "family": "Amaranthaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/701.jpg", "thumb": "photos/701_t.jpg", "n_obs": 3, "extra": [{"photo": "photos/701_1.jpg", "thumb": "photos/701_1_t.jpg"}, {"photo": "photos/701_2.jpg", "thumb": "photos/701_2_t.jpg"}], "months": [7]}, {"id": 27, "sci": "Crataegus rhipidophylla", "en": "Calycine Hawthorn", "de": "Großkelchiger Weißdorn", "family": "Rosaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {"preparation": "Berries, flowers, and young leaves are edible. Seeds (within the berry stone) contain cyanogenic compounds and should not be crushed or consumed in quantity. Do not take hawthorn preparations alongside prescription heart medications without medical advice — active compounds can interact with cardiac drugs."}, "photo": "photos/27.jpg", "thumb": "photos/27_t.jpg", "n_obs": 2, "extra": [{"photo": "photos/27_1.jpg", "thumb": "photos/27_1_t.jpg"}], "months": [7]}, {"id": 710, "sci": "Rosa villosa", "en": "", "de": "", "family": "Rosaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/710.jpg", "thumb": "photos/710_t.jpg", "n_obs": 1, "extra": [], "months": [7]}, {"id": 24, "sci": "Rhinanthus alectorolophus", "en": "European yellowrattle", "de": "Zotten-Klappertopf", "family": "Orobanchaceae", "kingdom": "Plantae", "toxic": true, "deadly": false, "apiaceae": false, "badge": {"kind": "toxic", "text": "☠ Toxic — do not eat"}, "safety": {"toxic": "Not safe to eat. Please simply appreciate the natural beauty and power of this plant without handling or consuming it."}, "photo": "photos/24.jpg", "thumb": "photos/24_t.jpg", "n_obs": 1, "extra": [], "months": [5]}, {"id": 183, "sci": "Galium album", "en": "Hedge Bedstraw", "de": "Weißes Labkraut", "family": "Rubiaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/183.jpg", "thumb": "photos/183_t.jpg", "n_obs": 1, "extra": [], "months": [5]}, {"id": 277, "sci": "Rosa dumalis", "en": "Glaucous Dog Rose", "de": "Vogesen-Rose", "family": "Rosa sect. Caninae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/277.jpg", "thumb": "photos/277_t.jpg", "n_obs": 1, "extra": [], "months": [5]}, {"id": 713, "sci": "Solidago virgaurea", "en": "Goldenrod", "de": "Gemeine Goldrute", "family": "Asteraceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/713.jpg", "thumb": "photos/713_t.jpg", "n_obs": 1, "extra": [], "months": [7]}, {"id": 794, "sci": "Sparassis crispa", "en": "Cauliflower Fungus", "de": "", "family": "Sparassidaceae", "kingdom": "Fungi", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/794.jpg", "thumb": "photos/794_t.jpg", "n_obs": 1, "extra": [], "months": [10]}], "recipes": [{"recipe_id": 152, "species_id": 93, "dish": "Stone Age Nettle Pudding", "line": "Britain's oldest recorded recipe, dated to c. 6000 BC and possibly 8,000 years old.", "source": "curator"}, {"recipe_id": 176, "species_id": 107, "dish": "Elderflower Brasil", "line": "Mayo, tomato, Feldberg elderflower, apple vinegar.", "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026"}, {"recipe_id": 96, "species_id": 125, "dish": "Acorn Flour Flatbreads with Charred Leek, Whey Labneh & Wild Garlic Oil", "line": "Sessile oak acorns carry something ancient in them — a depth that sits just beneath bitterness, and once that bitterness is leached away, what remains is a flour with a low, nutty, almost…", "source": "ai_generated"}, {"recipe_id": 78, "species_id": 161, "dish": "Roasted Apple with Brown Butter, Preserved Lemon & Wild Thyme", "line": "The apple is one of those fruits that people underestimate precisely because they know it so well.", "source": "ai_generated"}, {"recipe_id": 162, "species_id": 164, "dish": "Wild-Green Sauerkraut", "line": "House-fermented kraut with foraged wild greens folded through.", "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026"}, {"recipe_id": 113, "species_id": 186, "dish": "Broad-leaved Thyme, Roasted Courgette & Labneh with Charred Lemon", "line": "Thymus pulegioides sits somewhere between common thyme and pennyroyal in character — warmer, slightly more floral, with a faint mintiness underneath all that resinous depth.", "source": "ai_generated"}, {"recipe_id": 93, "species_id": 189, "dish": "Scots Pine Inner Bark Bread with Pine Salt and Birch Honey", "line": "Scots pine inner bark carries something ancient in it — a dry, faintly resinous sweetness that sits somewhere between vanilla and forest floor, with a structural quality that oats…", "source": "ai_generated"}, {"recipe_id": 110, "species_id": 193, "dish": "Lesser Stitchwort with Toasted Sesame, Preserved Lemon, and Spring Herbs", "line": "Lesser Stitchwort gets overlooked because it looks too delicate to mean anything — those thread-fine stems, those tiny split-petalled white stars.", "source": "ai_generated"}, {"recipe_id": 79, "species_id": 214, "dish": "Ox-Eye Daisy Shoots with Charred Spring Onions, Labneh, and Preserved Lemon", "line": "Ox-eye daisy is one of those plants that rewards boldness — the young spring shoots carry a genuine bitterness and a faint herbal pungency that lands somewhere between wild rocket and…", "source": "ai_generated"}, {"recipe_id": 99, "species_id": 277, "dish": "Rosa dumalis Hip Vinegar Glaze — Roasted Celeriac with Wild Hip Reduction, Toasted Seed Dust & Bitter Leaf", "line": "Rosa dumalis sits close enough to the common dog rose that most people walk past it without a second thought, but get the hips in your hand in late October and you'll feel the difference …", "source": "ai_generated"}, {"recipe_id": 49, "species_id": 286, "dish": "Dandelion Leaf Salad with Roasted Root Dressing, Caper-Preserved Buds, and a Warm Anchovy and Wild Garlic Fat", "line": "Dandelion is one of those plants that rewards patience and understanding — treat it carelessly and it bites back with bitterness; treat it with respect and it gives you something genuinely…", "source": "ai_generated"}, {"recipe_id": 74, "species_id": 329, "dish": "Spring Beech Leaf Salad with Toasted Beechnut, Aged Sheep's Cheese & Wild Herb Dressing", "line": "There's a window of maybe three weeks in spring when beech does something quietly extraordinary — those translucent copper-green leaves unfurl with a softness and a delicate nuttiness…", "source": "ai_generated"}, {"recipe_id": 83, "species_id": 341, "dish": "Malva moschata with Labneh, Preserved Lemon & Toasted Seed", "line": "Musk mallow doesn't shout.", "source": "ai_generated"}, {"recipe_id": 60, "species_id": 343, "dish": "Grand Fir Shoot Tea with Honey, Lemon, and Wild Ferment Shrub", "line": "The young spring tips of grand fir carry something you don't forget — a clean, resinous brightness that sits somewhere between citrus zest, pine, and cold mountain air.", "source": "ai_generated"}, {"recipe_id": 122, "species_id": 359, "dish": "Silver Fir Bark & Rye Bread Porridge with Fermented Fir Tip Vinegar", "line": "The inner bark of Abies alba carries a quiet, woody sweetness with something almost like toasted oats underneath—a soft, resinous warmth that asks for slow cooking, not flour blending into…", "source": "ai_generated"}, {"recipe_id": 137, "species_id": 361, "dish": "Campanula Rotundifolia Harebell Salad with Smoked Ewe's Milk Cheese and Charred Wild Garlic Dressing", "line": "The delicate harebell leaves mingle with the pungent charred wild garlic, creating a symphony of tastes rooted in our rich culinary heritage.", "source": "ai_generated"}, {"recipe_id": 130, "species_id": 420, "dish": "Betula Pendula Birch Syrup Sorbet with Saffron Poached Pears and a Hint of Anise", "line": "Today, we shall dance an ode to this humble tree in the form of a refreshing sorbet, accompanied by saffron-kissed pears and a whisper of anise.", "source": "ai_generated"}, {"recipe_id": 136, "species_id": 515, "dish": "Shepherd's Purse Greens with Sesame & Zanzibari Spices", "line": "A vibrant, peppery green that carries the essence of spring, our humble Shepherd's Purse is transformed into a symphony of flavours in this delightful recipe.", "source": "ai_generated"}, {"recipe_id": 154, "species_id": 701, "dish": "Fried Wild Herb, Polenta & Quinoa Fingers with Mountain Cheese", "line": "Toast whole quinoa in a dry pan until nutty and golden, cool, then grind.", "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026"}], "disclaimer": {"heading": "A note on safety and sources", "paras": ["Edibility and medicinal information on this page is for educational reference only. Always verify identification with multiple authoritative sources before consuming any wild plant or fungi. Never rely on any single source, including this page, as your sole basis for a consumption decision. Identification and content may be AI-assisted. Human-created and/or reviewed content is indicated where shown. This page is an educational resource, not a safety-certified identification system."]}};
+</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+<script>
+(function () {
+  "use strict";
+  var D = window.DATA;
+  var byId = {};
+  D.species.forEach(function (s) { byId[s.id] = s; });
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function badge(s) { return '<span class="badge ' + esc(s.badge.kind) + '">' + esc(s.badge.text) + "</span>"; }
+  function img(src, alt) {
+    return src ? '<img src="' + esc(src) + '" alt="' + esc(alt) + '" loading="lazy">' : '<div class="noimg"></div>';
+  }
+  // Same order as the app's walk panel: scientific name, common name, then the badge.
+  function stopSpecies(s) {
+    var common = [s.en, s.de].filter(Boolean).join(" · ");
+    return '<div class="walk-stop-sp">' + img(s.thumb, s.en || s.sci) + "<div>" +
+      '<span class="walk-stop-species">' + esc(s.sci) + "</span>" +
+      (common ? '<div class="walk-stop-common">' + esc(common) + "</div>" : "") +
+      '<div class="walk-stop-meta">' + badge(s) + "</div></div></div>";
+  }
+  // Species already shown at an earlier stop: one compact line, safety badge
+  // kept (rp.badge is set by gates.repeat_line_badge), no photo or recipe.
+  // Names rule (as the app's static/js/species-names.js): "Common (Latin)",
+  // Latin in italics; Latin alone only when there is no common name.
+  function spName(s) {
+    var latin = '<span class="walk-stop-species">' + esc(s.sci) + "</span>";
+    return s.en ? esc(s.en) + " (" + latin + ")" : latin;
+  }
+  function alsoHere(s, rp) {
+    return '<div class="walk-stop-also">Also here: ' + (rp.badge ? badge({ badge: rp.badge }) + " " : "") +
+      spName(s) + " — see stop " + esc(rp.first) + "</div>";
+  }
+  function stopBody(st) {
+    var full = st.species.filter(function (id) { return !st.repeat[id]; });
+    var rep  = st.species.filter(function (id) { return st.repeat[id]; });
+    return full.map(function (id) { return stopSpecies(byId[id]); }).join("") +
+      rep.map(function (id) { return alsoHere(byId[id], st.repeat[id]); }).join("");
+  }
+
+  // ── header ──
+  document.title = D.title;
+  document.getElementById("title").textContent = D.title;
+  document.getElementById("intro").textContent = D.intro;
+  // German / place lines: shown only when the curator filled them in (never machine-translated).
+  [["title-de", D.title_de], ["intro-de", D.intro_de], ["where", D.where], ["where-de", D.where_de]].forEach(function (p) {
+    var el = document.getElementById(p[0]);
+    if (p[1]) { el.textContent = p[1]; el.hidden = false; }
+  });
+  var km = D.walk.distance_m ? (D.walk.distance_m / 1000).toFixed(1) + " km" : "";
+  var hrs = D.walk.duration_min ? "about " + (Math.round(D.walk.duration_min / 30) / 2) + " h walking" : "";
+  document.getElementById("meta").textContent =
+    [km, hrs, D.walk.stops.length + " stops", D.species.length + " species"].filter(Boolean).join(" · ");
+  var cta = document.getElementById("cta");
+  cta.textContent = D.cta_label; cta.href = D.contact_url;
+
+  // ── tabs ──
+  var tabs = ["walk", "plants", "recipes", "taxonomy"];
+  var treeLoaded = false, map = null;
+  function show(name) {
+    if (tabs.indexOf(name) < 0) name = "walk";
+    tabs.forEach(function (t) {
+      document.getElementById("tab-" + t).setAttribute("aria-selected", t === name ? "true" : "false");
+      document.getElementById("panel-" + t).hidden = t !== name;
+    });
+    if (name === "taxonomy" && !treeLoaded) {
+      // Created on first open so the tree lays out at its real size.
+      var f = document.createElement("iframe");
+      f.src = "tree.html"; f.title = "Plant family tree";
+      document.getElementById("tree-frame-wrap").appendChild(f);
+      treeLoaded = true;
+    }
+    if (name === "walk" && map) setTimeout(function () { map.invalidateSize(); }, 0);
+    if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+  }
+  tabs.forEach(function (t) {
+    document.getElementById("tab-" + t).addEventListener("click", function () { show(t); });
+  });
+
+  // ── walk: stop cards in the app's walk-panel layout ──
+  var stopsEl = document.getElementById("stops");
+  stopsEl.innerHTML = D.walk.stops.map(function (st) {
+    // Plain numbered stop; toxicity is shown only on the plant (its badge).
+    return '<div class="walk-stop-card" id="stop-' + st.n + '">' +
+      '<div class="stop-head" data-stop="' + st.n + '"><span class="walk-stop-num">' + st.n + "</span>" +
+      (st.species.length > 1 ? st.species.length + " species here" : "Stop " + st.n) + "</div>" +
+      stopBody(st) + "</div>";
+  }).join("");
+
+  var markers = {};
+  if (window.L) {
+    map = L.map("map", { scrollWheelZoom: false });
+    // Same keyless base layers as the app (frontend/index.html _baseLayers). No API keys.
+    var base = {
+      "Standard": L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '© <a href="https://openstreetmap.org/copyright" target="_top">OpenStreetMap</a> contributors', maxZoom: 19 }),
+      "Satellite": L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+        attribution: "Tiles &copy; Esri &mdash; Source: Esri, USGS, AeroGRID, IGN, and the GIS User Community", maxZoom: 19 }),
+      "Topo": L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
+        attribution: 'Map data: &copy; <a href="https://openstreetmap.org/copyright" target="_top">OpenStreetMap</a> contributors, SRTM | Display: &copy; <a href="https://opentopomap.org" target="_top">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_top">CC-BY-SA</a>)',
+        maxZoom: 17, subdomains: ["a", "b", "c"] })
+    };
+    base["Standard"].addTo(map);
+    L.control.layers(base, null, { position: "topright", collapsed: true }).addTo(map);
+
+    // Locate me — browser geolocation, shown on the map only. Nothing is stored or sent.
+    var here = null;
+    var Locate = L.Control.extend({
+      options: { position: "topleft" },
+      onAdd: function () {
+        var b = L.DomUtil.create("button", "locate-btn");
+        b.type = "button"; b.title = "Show my location"; b.setAttribute("aria-label", "Show my location");
+        b.textContent = "◎";
+        L.DomEvent.disableClickPropagation(b);
+        L.DomEvent.on(b, "click", function () {
+          if (!navigator.geolocation) { alert("Location isn't available in this browser."); return; }
+          b.disabled = true;
+          navigator.geolocation.getCurrentPosition(function (pos) {
+            b.disabled = false;
+            var ll = [pos.coords.latitude, pos.coords.longitude];
+            if (here) here.remove();
+            here = L.layerGroup([
+              L.circle(ll, { radius: pos.coords.accuracy, color: "#6E8FA8", weight: 1, fillOpacity: 0.12 }),
+              L.circleMarker(ll, { radius: 7, color: "#fff", weight: 2, fillColor: "#6E8FA8", fillOpacity: 1 })
+            ]).addTo(map);
+            map.setView(ll, Math.max(map.getZoom(), 15));
+          }, function (err) {
+            b.disabled = false;
+            alert(err.code === 1 ? "Location permission was refused." : "Couldn't get your location.");
+          }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+        });
+        return b;
+      }
+    });
+    map.addControl(new Locate());
+    var bounds = [];
+    if (D.walk.line) {
+      var ll = D.walk.line.map(function (c) { return [c[1], c[0]]; });
+      var lineColour = getComputedStyle(document.documentElement).getPropertyValue("--app-forest").trim() || "#2d5016";
+      // As the app (frontend/index.html): routed parts solid; straight legs
+      // between stops (D.walk.straight_ranges, vertex ranges) dashed with a tooltip.
+      var at = 0;
+      function solid(a, b) {
+        if (b > a) L.polyline(ll.slice(a, b + 1), { color: lineColour, weight: 4, opacity: 0.9 }).addTo(map);
+      }
+      (D.walk.straight_ranges || []).forEach(function (r) {
+        solid(at, r[0]);
+        L.polyline(ll.slice(r[0], r[1] + 1), { color: lineColour, weight: 3.5, dashArray: "7 6", opacity: 0.9 })
+          .bindTooltip("Straight line between stops — no mapped footpath here", { sticky: true })
+          .addTo(map);
+        at = r[1];
+      });
+      solid(at, ll.length - 1);
+      bounds = bounds.concat(ll);
+    }
+    D.walk.stops.forEach(function (st) {
+      var icon = L.divIcon({ className: "", iconSize: [26, 26], html: '<div class="stop-pin">' + st.n + "</div>" });
+      var m = L.marker([st.lat, st.lng], { icon: icon, title: "Stop " + st.n })
+        .addTo(map)
+        .bindPopup('<div class="stop-head"><span class="walk-stop-num">' + st.n + "</span>Stop " + st.n + "</div>" +
+                   stopBody(st), { maxWidth: 290 });
+      markers[st.n] = m;
+      bounds.push([st.lat, st.lng]);
+    });
+    if (bounds.length) map.fitBounds(bounds, { padding: [20, 20] });
+  } else {
+    document.getElementById("map").innerHTML = '<p class="subtitle" style="padding:12px">Map could not load (offline?).</p>';
+  }
+  stopsEl.addEventListener("click", function (e) {
+    var h = e.target.closest(".stop-head[data-stop]");
+    if (!h || !map) return;
+    var m = markers[h.getAttribute("data-stop")];
+    document.getElementById("map").scrollIntoView({ behavior: "smooth", block: "center" });
+    map.setView(m.getLatLng(), Math.max(map.getZoom(), 16));
+    m.openPopup();
+  });
+
+  // ── plants: the app's species cards; tap → preview panel ──
+  var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var recipeBySpecies = {};
+  D.recipes.forEach(function (r) { recipeBySpecies[r.species_id] = r; });
+  function filterGroup(s) {
+    var k = s.badge.kind;
+    return (k === "toxic" || k === "deadly") ? "toxic" : (k === "edible" || k === "caution") ? k : "other";
+  }
+  var grid = document.getElementById("species-grid");
+  grid.innerHTML = D.species.map(function (s) {
+    return '<article class="species-card pick' + (s.toxic ? " toxic" : "") + '" role="button" tabindex="0"' +
+      ' data-sid="' + s.id + '" data-group="' + filterGroup(s) + '" aria-label="' + esc(s.en || s.sci) + '">' +
+      (s.thumb ? '<img class="photo" src="' + esc(s.thumb) + '" alt="" loading="lazy">' : '<div class="photo"></div>') +
+      '<div class="body"><div class="common">' + (s.toxic ? "☠ " : "") + esc(s.en || s.sci) + "</div>" +
+      (s.de ? '<div class="common-de">' + esc(s.de) + "</div>" : "") +
+      '<div class="sci-name">' + esc(s.sci) + "</div>" +
+      (s.family ? '<div class="family">' + esc(s.family) + "</div>" : "") + badge(s) + "</div></article>";
+  }).join("");
+
+  var chips = document.querySelectorAll(".chip");
+  Array.prototype.forEach.call(chips, function (c) {
+    c.addEventListener("click", function () {
+      var f = c.getAttribute("data-filter");
+      Array.prototype.forEach.call(chips, function (x) { x.setAttribute("aria-pressed", x === c ? "true" : "false"); });
+      Array.prototype.forEach.call(grid.children, function (card) {
+        card.hidden = !(f === "all" || card.getAttribute("data-group") === f);
+      });
+    });
+  });
+
+  var panel = document.getElementById("sp-panel"), scrim = document.getElementById("sp-scrim");
+  var panelBody = document.getElementById("sp-panel-body"), lastFocus = null;
+  function openPanel(sid) {
+    var s = byId[sid]; if (!s) return;
+    var photos = (s.photo ? [{ photo: s.photo, thumb: s.thumb }] : []).concat(s.extra || []);
+    var r = recipeBySpecies[s.id];
+    var w = "";
+    if (s.safety.toxic) w += '<div class="warn toxic"><strong>☠ Not safe to eat</strong>' + esc(s.safety.toxic) + "</div>";
+    if (s.safety.caution) w += '<div class="warn caution"><strong>⚠ Caution</strong>' + esc(s.safety.caution) + "</div>";
+    if (s.safety.preparation) w += '<div class="warn caution"><strong>⚠ Preparation</strong>' + esc(s.safety.preparation) + "</div>";
+    if (s.safety.look_alike) w += '<div class="warn lookalike"><strong>Look-alikes</strong>' + esc(s.safety.look_alike) + "</div>";
+    panelBody.innerHTML =
+      (photos.length ? '<img class="sp-main" id="sp-main" src="' + esc(photos[0].photo) + '" data-full="' + esc(photos[0].photo) + '" alt="' + esc(s.en || s.sci) + '">' : "") +
+      (photos.length > 1 ? '<div class="sp-thumbs">' + photos.map(function (p, i) {
+        return '<button class="sp-thumb' + (i === 0 ? " on" : "") + '" data-photo="' + esc(p.photo) + '" aria-label="Photo ' + (i + 1) + '">' +
+               '<img src="' + esc(p.thumb) + '" alt=""></button>';
+      }).join("") + "</div>" : "") +
+      '<div class="sp-text species-card">' +
+      '<div class="common" id="sp-panel-title">' + (s.toxic ? "☠ " : "") + esc(s.en || s.sci) + "</div>" +
+      (s.de ? '<div class="common-de">' + esc(s.de) + "</div>" : "") +
+      '<div class="sci-name">' + esc(s.sci) + "</div>" +
+      (s.family ? '<div class="family">' + esc(s.family) + "</div>" : "") +
+      (s.months && s.months.length ? '<div class="family">Seen on this walk: ' + s.months.map(function (m) { return MONTHS[m - 1]; }).join(", ") + "</div>" : "") +
+      badge(s) +
+      (r ? '<div class="walk-stop-recipe"><strong>' + esc(r.dish) + '</strong><div class="line">' + esc(r.line) + "</div></div>" : "") +
+      w + "</div>";
+    lastFocus = document.activeElement;
+    panel.hidden = false; scrim.hidden = false;
+    document.body.classList.add("sp-open");
+    document.getElementById("sp-close").focus();
+  }
+  function closePanel() {
+    panel.hidden = true; scrim.hidden = true;
+    document.body.classList.remove("sp-open");
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  grid.addEventListener("click", function (e) {
+    var card = e.target.closest(".species-card.pick");
+    if (card) openPanel(+card.getAttribute("data-sid"));
+  });
+  grid.addEventListener("keydown", function (e) {
+    var card = e.target.closest(".species-card.pick");
+    if (card && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openPanel(+card.getAttribute("data-sid")); }
+  });
+  panelBody.addEventListener("click", function (e) {
+    var b = e.target.closest(".sp-thumb");
+    if (!b) return;
+    var main = document.getElementById("sp-main");
+    main.src = b.getAttribute("data-photo"); main.setAttribute("data-full", b.getAttribute("data-photo"));
+    Array.prototype.forEach.call(panelBody.querySelectorAll(".sp-thumb"), function (x) { x.classList.toggle("on", x === b); });
+  });
+  document.getElementById("sp-close").addEventListener("click", closePanel);
+  scrim.addEventListener("click", closePanel);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !panel.hidden && !document.getElementById("lightbox").classList.contains("open")) closePanel();
+  });
+
+  // ── recipes: teaser in the app's walk-panel recipe strip ──
+  var rg = document.getElementById("recipe-grid");
+  rg.innerHTML = D.recipes.length ? D.recipes.map(function (r) {
+    var s = byId[r.species_id];
+    return '<article class="species-card">' +
+      (s.photo ? '<img class="photo" src="' + esc(s.thumb) + '" data-full="' + esc(s.photo) + '" alt="' + esc(s.en || s.sci) + '" loading="lazy">' : "") +
+      '<div class="body"><div class="common">' + esc(s.en || s.sci) + "</div>" +
+      (s.de ? '<div class="common-de">' + esc(s.de) + "</div>" : "") + badge(s) +
+      '<div class="walk-stop-recipe"><strong>' + esc(r.dish) + '</strong><div class="line">' + esc(r.line) + "</div></div>" +
+      "</div></article>";
+  }).join("") : '<p class="subtitle">Recipes to follow.</p>';
+
+  // ── footer ──
+  document.getElementById("disclaimer-h").textContent = D.disclaimer.heading;
+  document.getElementById("disclaimer").innerHTML = D.disclaimer.paras.map(function (p) { return "<p>" + esc(p) + "</p>"; }).join("");
+  document.getElementById("footer-links").innerHTML =
+    '<a href="' + esc(D.contact_url) + '" target="_top" rel="noopener">Contact</a>' +
+    (D.impressum_url ? '<a href="' + esc(D.impressum_url) + '" target="_top" rel="noopener">Impressum</a>'
+                     : '<span class="placeholder">Impressum (link to follow)</span>') +
+    (D.datenschutz_url ? '<a href="' + esc(D.datenschutz_url) + '" target="_top" rel="noopener">Datenschutz</a>'
+                       : '<span class="placeholder">Datenschutz (link to follow)</span>');
+
+  // ── photo lightbox ──
+  var lb = document.getElementById("lightbox");
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (t.matches && t.matches("img[data-full]")) { lb.querySelector("img").src = t.getAttribute("data-full"); lb.classList.add("open"); }
+    else if (t === lb || t.parentNode === lb) { lb.classList.remove("open"); }
+  });
+
+  show((location.hash || "#walk").slice(1));
+})();
+</script>
+</body>
+</html>
