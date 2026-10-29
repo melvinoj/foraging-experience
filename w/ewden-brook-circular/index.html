@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>Ewden brook circular</title>
+<link rel="canonical" href="https://melvinoj.github.io/foraging-experience/w/ewden-brook-circular/">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+<style>
+/* ════ App styles — copied from the app at build time (app_styles.py) ════ */
+/* ── frontend/static/css/tokens.css :root (verbatim) ── */
+:root {
+  /* Colour */
+  --ink:         #1E2A22;
+  --ground:      #EEF0EA;
+  --paper:       #FDFDFB;
+  --moss:        #5A6B58;
+  --moss-light:  #8A9884;
+  --leaf:        #7E9471;
+  --leaf-pale:   #C9D2BC;
+  --hairline:    #D8DCD2;
+  --damson:      #5B3A4E;
+  --amber:       #C89B3C;
+  --water:       #6E8FA8;
+  --alert:       #B0524A;
+
+  /* Type */
+  --font-display: Georgia, 'Times New Roman', serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  /* Layout */
+  --touch-min: 44px;
+}
+/* ── app shell colours: species.html body {'background': '#2a3330', 'color': '#d8e4d8'}, lists.html body {'background': '#1e2b28', 'color': '#d8e4d8'} ── */
+:root { --app-shell:#2a3330; --app-shell-deep:#1e2b28; --app-text:#d8e4d8; --app-toxic:#dc2626; --app-forest:#2d5016; --app-heading:#8ab87a; }
+/* index.css */
+.walk-stop-card {
+      background: #f8fdf4; border: 1px solid #d8e8c8;
+      border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+    }
+/* index.css */
+.walk-stop-num {
+      display: inline-block; min-width: 22px; height: 22px; padding: 0 4px; box-sizing: border-box;
+      background: #2d5016; color: white; border-radius: 11px;   /* pill: fits "12a" */
+      font-size: 0.7rem; font-weight: 700;
+      text-align: center; line-height: 22px;
+      margin-right: 7px; flex-shrink: 0; vertical-align: middle;
+    }
+/* index.css */
+.walk-stop-species { font-size: 0.82rem; font-weight: 600; color: #2d5016; }
+/* index.css */
+.walk-stop-common  { font-size: 0.75rem; color: #666; margin-top: 2px; }
+/* index.css */
+.walk-stop-meta    { font-size: 0.72rem; color: #999; margin-top: 2px; }
+/* index.css */
+.walk-stop-recipe  {
+      margin-top: 6px; padding: 5px 8px;
+      background: #fffbe6; border-left: 3px solid #e5a800;
+      border-radius: 0 4px 4px 0; font-size: 0.73rem; color: #6b5200;
+    }
+/* index.css */
+.walk-stop-recipe strong { color: #e5a800; }
+/* index.css */
+.walk-header h3 { font-size: 0.9rem; color: #2d5016; margin-bottom: 2px; }
+/* index.css */
+.walk-header .walk-sub { font-size: 0.75rem; color: #888; }
+/* species.html */
+.species-card {
+      background: #344440; border: 1px solid #4a5e5a; border-radius: 8px;
+      padding: 14px; cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s;
+      text-decoration: none; color: inherit; display: block;
+    }
+/* species.html */
+.species-card .common { font-size: 0.95rem; font-weight: 700; color: #a8c88a; margin-bottom: 2px; }
+/* species.html */
+.species-card .sci-name { font-size: 0.78rem; font-weight: 400; font-style: italic; color: #5a7a3a; }
+/* species.html */
+.species-card .common-de { font-size: 0.75rem; color: #7a6530; font-style: italic; margin-top: 1px; }
+/* species.html */
+.species-card .family { font-size: 0.75rem; color: #888; margin-top: 4px; }
+/* species.html */
+.species-card .warn-badge {
+      display: inline-block; margin-top: 6px; margin-left: 4px;
+      background: #f8d7da; color: #842029; font-size: 0.72rem;
+      padding: 2px 7px; border-radius: 10px;
+    }
+/* species.html */
+.species-card .toxic-badge {
+      display: inline-block; margin-top: 6px; margin-left: 4px;
+      background: #dc2626; color: #fff; font-size: 0.72rem;
+      padding: 2px 7px; border-radius: 10px; font-weight: 600;
+    }
+/* species.html */
+#list-view h2 { font-size: 1.3rem; color: #8ab87a; margin-bottom: 4px; }
+/* species.html */
+#list-view .subtitle { font-size: 0.85rem; color: #7a9a7a; margin-bottom: 16px; }
+
+/* Edibility badges — colours read from index.html renderWalkPanel() at build time */
+.badge { display:inline-block; font-size:0.68rem; padding:1px 6px; border-radius:4px;
+  font-weight:600; background:#f3f3f3; color:#555; }
+.badge.toxic, .badge.deadly { background:#dc2626; color:#fff; font-weight:700; }
+.badge.edible   { background:#d1f5da; color:#166534; }
+.badge.inedible { background:#fef3c7; color:#854d0e; }
+/* Apiaceae ID card + "toxicity unknown" (fail closed): species.html .warn-badge colours */
+.badge.apiaceae, .badge.unknown { background:#f8d7da; color:#842029; font-weight:700; }
+/* caution: the walk panel has no caution colour — use the app's --amber token */
+.badge.caution  { background:var(--amber); color:var(--ink); }
+
+
+/* ════ Page layout — composes the app's tokens and classes ════ */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--app-shell); color: var(--app-text); font-family: var(--font-ui);
+    line-height: 1.45; overflow-x: hidden; }
+  /* Page images only — never Leaflet's tiles/markers (Leaflet sizes those itself). */
+  img:not(.leaflet-container img) { max-width: 100%; display: block; }
+  a { color: var(--leaf-pale); }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+
+  header.hero { background: var(--app-shell-deep); padding: 26px 0 20px; border-bottom: 2px solid var(--app-forest); }
+  .hero h1 { font-family: var(--font-display); font-weight: 400; color: var(--app-heading);
+    font-size: clamp(1.5rem, 5vw, 2.1rem); line-height: 1.2; margin: 0 0 8px; }
+  .hero p { margin: 0 0 12px; max-width: 62ch; }
+  .hero p.de { font-family: var(--font-display); color: var(--leaf-pale); font-size: 1.05rem; margin-top: -4px; }
+  .hero p.where { font-size: 0.85rem; color: var(--leaf-pale); margin-bottom: 6px; }
+  .hero p[hidden] { display: none; }
+  .meta { font-size: 0.8rem; color: var(--moss-light); margin-bottom: 16px; }
+  .cta { display: inline-flex; align-items: center; min-height: var(--touch-min); padding: 0 20px;
+    background: var(--app-forest); color: var(--paper); border-radius: 7px; font-weight: 600;
+    text-decoration: none; border: 1.5px solid var(--leaf); }
+  .cta:hover { background: var(--moss); }
+
+  nav.tabs { position: sticky; top: 0; z-index: 1000; background: var(--app-shell-deep);
+    border-bottom: 1px solid rgba(255,255,255,.08); }
+  .tabs .wrap { display: flex; }
+  .tab { flex: 1; min-height: var(--touch-min); appearance: none; border: 0; background: none;
+    font: 600 0.9rem var(--font-ui); color: var(--moss-light); border-bottom: 3px solid transparent; cursor: pointer; }
+  .tab[aria-selected="true"] { color: var(--leaf-pale); border-bottom-color: var(--leaf); }
+
+  section.panel { padding: 18px 0 28px; }
+  section.panel[hidden] { display: none; }
+  #list-view h2 { font-family: var(--font-display); font-weight: 400; }
+
+  /* Square corners on purpose: border-radius + Leaflet's overflow:hidden makes Chrome
+     composite the tile layer as a clipped layer, a known source of hairline tile seams. */
+  #map { height: 58vh; min-height: 300px; border: 1px solid rgba(255,255,255,.12); }
+  /* Leaflet's default container colour is #ddd; any hairline gap between tiles
+     (fractional-pixel tile positions) shows that through as a near-white grid line.
+     Dark here so a gap, if any, matches the page instead. */
+  .leaflet-container { background: var(--app-shell-deep); }
+  .leaflet-container img { box-sizing: content-box; }
+  /* Tile seams: on this page the map sits at a fractional pixel position (58vh height,
+     text above with non-integer line heights), so 256px tiles can leave hairline gaps
+     that show the container colour (seen as dark lines, 15 Oct 2026). Fix: overlap
+     each tile by half a pixel so no gap can open. Leaflet 1.9.4's plus-lighter blending
+     would ADD colours in that overlap (a bright line), so tiles use normal blending —
+     the overlap simply covers. */
+  .leaflet-container img.leaflet-tile { mix-blend-mode: normal;
+    width: 256.5px !important; height: 256.5px !important; }
+  .stop-pin { width: 26px; height: 26px; border-radius: 50%; background: var(--app-forest); color: #fff;
+    font: 700 12px/26px var(--font-ui); text-align: center; border: 2px solid var(--paper);
+    box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+
+  .stops { margin-top: 16px; }
+  .stop-head { display: flex; align-items: center; gap: 2px; cursor: pointer; min-height: 28px;
+    color: var(--ink); font-size: 0.8rem; font-weight: 600; }
+  .stop-head .badge { margin-left: 6px; }
+  .walk-stop-sp { display: flex; gap: 10px; align-items: flex-start; margin-top: 8px; }
+  .walk-stop-sp + .walk-stop-sp { border-top: 1px dashed #e3ead7; padding-top: 8px; }
+  .walk-stop-sp img, .walk-stop-sp .noimg { width: 52px; height: 52px; border-radius: 6px; object-fit: cover;
+    flex: 0 0 auto; background: var(--leaf-pale); }
+  .walk-stop-species { font-family: var(--font-display); font-style: italic; }
+  .walk-stop-also { font-size: 0.82rem; margin-top: 6px; color: #556040; }
+  .walk-stop-also .badge { margin-right: 2px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 4px; }
+  .chip { min-height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid rgba(255,255,255,.18);
+    background: transparent; color: var(--leaf-pale); font: 600 .82rem var(--font-ui); cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--app-forest); border-color: var(--leaf); color: var(--paper); }
+  .species-card.pick { cursor: pointer; }
+  .species-card.pick:focus-visible { outline: 3px solid var(--leaf); outline-offset: 2px; }
+  .species-card[hidden] { display: none; }
+
+  body.sp-open { overflow: hidden; }
+  .sp-scrim { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 1500; }
+  .sp-panel { position: fixed; z-index: 1600; left: 0; right: 0; bottom: 0; max-height: 90vh; overflow-y: auto;
+    background: var(--app-shell); border-top: 2px solid var(--app-forest); border-radius: 14px 14px 0 0;
+    box-shadow: 0 -6px 24px rgba(0,0,0,.4); padding: 0 0 20px; }
+  .sp-panel[hidden], .sp-scrim[hidden] { display: none; }
+  @media (min-width: 760px) {
+    .sp-panel { left: 50%; right: auto; bottom: auto; top: 50%; transform: translate(-50%, -50%);
+      width: min(640px, 92vw); max-height: 88vh; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); }
+  }
+  .sp-close { position: sticky; top: 8px; float: right; margin: 8px 8px -52px 0; z-index: 2;
+    width: var(--touch-min); height: var(--touch-min); border-radius: 50%; border: 0;
+    background: rgba(30,43,40,.85); color: var(--paper); font-size: 1.1rem; cursor: pointer; }
+  .sp-main { width: 100%; max-height: 52vh; object-fit: cover; cursor: zoom-in; background: var(--app-shell-deep); }
+  .sp-thumbs { display: flex; gap: 8px; padding: 10px 16px 0; overflow-x: auto; }
+  .sp-thumb { flex: 0 0 auto; width: 64px; height: 64px; padding: 0; border: 2px solid transparent; border-radius: 6px;
+    background: none; cursor: pointer; overflow: hidden; }
+  .sp-thumb.on { border-color: var(--leaf); }
+  .sp-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .sp-text.species-card { background: none; border: 0; padding: 12px 16px 0; cursor: default; }
+  .sp-text .common { font-size: 1.3rem; }
+  .sp-text .badge { margin-top: 8px; }
+
+  #tree-frame-wrap { height: 70vh; min-height: 360px; border-radius: 8px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,.12); background: var(--app-shell-deep); }
+  #tree-frame-wrap iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); margin-top: 16px; }
+  .grid .species-card { padding: 0; overflow: hidden; cursor: default; }
+  .grid .species-card.toxic { border: 2px solid var(--app-toxic); }
+  .species-card .photo { aspect-ratio: 4 / 3; width: 100%; object-fit: cover; background: var(--app-shell-deep); cursor: zoom-in; }
+  .species-card .body { padding: 12px 14px 14px; }
+  .species-card .common { font-family: var(--font-display); font-weight: 400; font-size: 1.05rem; }
+  .species-card .badge { margin-top: 6px; }
+  .warn { margin-top: 8px; font-size: 0.8rem; border-radius: 0 6px 6px 0; padding: 7px 9px; line-height: 1.4; }
+  .warn.toxic { background: rgba(220,38,38,.14); color: #fecaca; border-left: 3px solid var(--app-toxic); }
+  .warn.lookalike { background: rgba(200,155,60,.14); color: #f3e2bb; border-left: 3px solid var(--amber); }
+  .warn.caution { background: rgba(200,155,60,.14); color: #f3e2bb; border-left: 3px solid var(--amber); }
+  .warn strong { display: block; margin-bottom: 2px; }
+  .species-card .walk-stop-recipe { margin: 8px 0 0; }
+  .walk-stop-recipe .line { margin-top: 3px; font-style: italic; line-height: 1.4; }
+  /* Recipes tab (25 Oct 2026): every public recipe, teaser tiles, no photos.
+     Own filter selects — never .chip (the Plants filter binds every .chip). */
+  .rf-bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+  .rf-select { min-height: 36px; padding: 0 10px; border-radius: 18px; border: 1px solid rgba(255,255,255,.18);
+    background: transparent; color: var(--leaf-pale); font: 600 .82rem var(--font-ui); }
+  .rf-select option { color: #222; }
+  .rf-group { font-family: var(--font-display); font-size: 1.05rem; color: var(--app-heading); margin: 18px 0 0; }
+  .recipe-tile .body { padding: 12px 14px 14px; }
+  .recipe-tile .dish { font-weight: 700; color: var(--paper); }
+  .recipe-tile .plant { font-size: 0.82rem; color: var(--leaf-pale); margin-top: 2px; }
+  .recipe-tile .plant em { color: var(--moss-light); }
+  .recipe-tile .line { margin-top: 6px; font-style: italic; line-height: 1.4; font-size: 0.85rem; }
+  .recipe-tile .meta { margin-top: 6px; font-size: 0.75rem; color: var(--moss-light); }
+  .recipe-tile .full { display: inline-block; margin-top: 8px; font-weight: 600; }
+  .note-box { background: var(--app-shell-deep); border-left: 3px solid var(--amber); border-radius: 0 6px 6px 0;
+    padding: 9px 12px; color: var(--leaf-pale); font-weight: 600; margin: 0; }
+
+  footer { background: var(--app-shell-deep); border-top: 2px solid var(--app-forest); padding: 22px 0 36px;
+    font-size: 0.8rem; color: var(--moss-light); }
+  footer h2 { font-family: var(--font-display); font-weight: 400; font-size: 1rem; color: var(--app-heading); margin: 0 0 8px; }
+  footer p { margin: 0 0 10px; }
+  .footer-links { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 14px; }
+  .footer-links a { display: inline-flex; align-items: center; min-height: var(--touch-min); }
+  .placeholder { color: var(--alert); font-weight: 700; }
+
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.9); z-index: 2000; display: none;
+    align-items: center; justify-content: center; padding: 16px; }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-height: 90vh; border-radius: 8px; }
+  .leaflet-popup-content { margin: 10px 12px; min-width: 210px; font-family: var(--font-ui); }
+  .locate-btn { width: var(--touch-min); height: var(--touch-min); border-radius: 6px; border: 2px solid rgba(0,0,0,.2);
+    background: var(--paper); color: var(--ink); font-size: 22px; line-height: 1; cursor: pointer; }
+  .locate-btn:disabled { opacity: .5; }
+  .leaflet-control-layers { font-family: var(--font-ui); }
+  .leaflet-popup-content .walk-stop-sp:first-of-type { margin-top: 4px; }
+</style>
+</head>
+<body><nav id="walk-collection-link" aria-label="Walk collection" style="padding:12px 16px;background:#1e2b28;color:#d8e4d8"><a href="../../" style="color:inherit">← All walks</a></nav>
+<header class="hero">
+  <div class="wrap">
+    <h1 id="title"></h1>
+    <p class="de" id="title-de" lang="de" hidden></p>
+    <p id="intro"></p>
+    <p id="intro-de" lang="de" hidden></p>
+    <p class="where" id="where" hidden></p>
+    <p class="where" id="where-de" lang="de" hidden></p>
+    <div class="meta" id="meta"></div>
+    <a class="cta" id="cta" href="#" target="_top" rel="noopener"></a>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Sections">
+  <div class="wrap" role="tablist">
+    <button class="tab" role="tab" id="tab-walk" aria-controls="panel-walk" aria-selected="true">Walk</button>
+    <button class="tab" role="tab" id="tab-plants" aria-controls="panel-plants" aria-selected="false">Plants</button>
+    <button class="tab" role="tab" id="tab-recipes" aria-controls="panel-recipes" aria-selected="false">Recipes</button>
+    <button class="tab" role="tab" id="tab-taxonomy" aria-controls="panel-taxonomy" aria-selected="false">Taxonomy</button>
+  </div>
+</nav>
+
+<main id="list-view">
+  <section class="panel" id="panel-walk" role="tabpanel" aria-labelledby="tab-walk">
+    <div class="wrap">
+      <h2>The route</h2>
+      <p class="subtitle">Numbered stops follow the walk.</p>
+      <div id="map" role="region" aria-label="Walk map"></div>
+      <div class="stops walk-stops" id="stops"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-plants" role="tabpanel" aria-labelledby="tab-plants" hidden>
+    <div class="wrap">
+      <h2>Plants on this walk</h2>
+      <p class="subtitle">Tap a plant for more photos and details.</p>
+      <div class="chips" role="group" aria-label="Filter plants">
+        <button class="chip" data-filter="all" aria-pressed="true">All</button>
+        <button class="chip" data-filter="edible" aria-pressed="false">Edible</button>
+        <button class="chip" data-filter="caution" aria-pressed="false">Caution</button>
+        <button class="chip" data-filter="toxic" aria-pressed="false">☠ Toxic</button>
+      </div>
+      <div class="grid" id="species-grid"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-recipes" role="tabpanel" aria-labelledby="tab-recipes" hidden>
+    <div class="wrap">
+      <h2>From the walk to the plate</h2>
+      <p class="note-box">A taste of what we cook — full recipes on the day.</p>
+      <div class="rf-bar" role="group" aria-label="Filter recipes">
+        <select class="rf-select" id="rf-view" aria-label="Show">
+          <option value="now">In season now</option>
+          <option value="season">By season</option>
+          <option value="type">By type</option>
+          <option value="az">A–Z</option>
+          <option value="recent">Recently added</option>
+        </select>
+      </div>
+      <div id="recipe-grid"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-taxonomy" role="tabpanel" aria-labelledby="tab-taxonomy" hidden>
+    <div class="wrap">
+      <h2>Family tree</h2>
+      <p class="subtitle">How everything we meet on the way is related. Tap a branch to open it, tap a species for its photo.</p>
+      <div id="tree-frame-wrap"></div>
+    </div>
+  </section>
+</main>
+
+<div class="sp-scrim" id="sp-scrim" hidden></div>
+<div class="sp-panel" id="sp-panel" role="dialog" aria-modal="true" aria-labelledby="sp-panel-title" hidden>
+  <button class="sp-close" id="sp-close" aria-label="Close">✕</button>
+  <div id="sp-panel-body"></div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <h2 id="disclaimer-h"></h2>
+    <div id="disclaimer"></div>
+    <div class="footer-links" id="footer-links"></div>
+  </div>
+</footer>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-label="Photo"><img alt=""></div>
+
+<script>
+window.DATA = {"slug": "ewden-brook-circular", "title": "Ewden brook circular", "title_de": "", "intro": "", "intro_de": "", "where": "", "where_de": "", "cta_label": "Book or ask a question", "contact_url": "https://melvinjarman.co.uk/contact", "impressum_url": "https://melvinjarman.co.uk/impressum", "datenschutz_url": "https://melvinjarman.co.uk/datenschutzerklarung/", "walk": {"name": "Ewden brook circular", "distance_m": 3775.0, "duration_min": 45, "line": null, "straight_ranges": [], "stops": [{"n": "1", "lat": 53.46646388888889, "lng": -1.6303444444444444, "species": [223], "toxic": false, "repeat": {}}, {"n": "2", "lat": 53.466886111111116, "lng": -1.6322138888888889, "species": [329], "toxic": false, "repeat": {}}, {"n": "3", "lat": 53.46694166666667, "lng": -1.6324444444444444, "species": [331], "toxic": false, "repeat": {}}]}, "species": [{"id": 223, "sci": "Meripilus giganteus", "en": "Giant Polypore", "de": "Riesen-Porling", "family": "Meripilaceae", "kingdom": "Fungi", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/223.jpg", "thumb": "photos/223_t.jpg", "n_obs": 1, "extra": [], "months": [9]}, {"id": 329, "sci": "Fagus sylvatica", "en": "European Beech", "de": "Rotbuche", "family": "Fagaceae", "kingdom": "Plantae", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "edible", "text": "Edible"}, "safety": {}, "photo": "photos/329.jpg", "thumb": "photos/329_t.jpg", "n_obs": 1, "extra": [], "months": [9]}, {"id": 331, "sci": "Mycena galericulata", "en": "Common bonnet", "de": "Rosablättriger Helmling", "family": "Mycenaceae", "kingdom": "Fungi", "toxic": false, "deadly": false, "apiaceae": false, "badge": {"kind": "inedible", "text": "Not for eating"}, "safety": {}, "photo": "photos/331.jpg", "thumb": "photos/331_t.jpg", "n_obs": 1, "extra": [], "months": [9]}], "recipes": [{"recipe_id": 223, "species_id": 223, "dish": "Giant Polypore, Slow-Cooked with Butter Beans, Shallot, and Sage", "line": "A deep, savoury, almost meaty richness with a texture that holds its own against butter beans and slow-cooked shallots.", "source": "ai_generated", "warnings": []}, {"recipe_id": 74, "species_id": 329, "dish": "Spring Beech Leaf Salad with Toasted Beechnut, Aged Sheep's Cheese & Wild Herb Dressing", "line": "There's a window of maybe three weeks in spring when beech does something quietly extraordinary — those translucent copper-green leaves unfurl with a softness and a delicate nuttiness…", "source": "ai_generated", "warnings": []}], "recipe_bank": [{"recipe_id": 4, "species_id": 6, "dish": "Raspberry Leaf Tea with Fermented Raspberries and Burnt Honey", "line": "Raspberry leaf carries a particular earthiness — mineral, slightly astringent, with a green tea quality that deepens…", "season": "spring", "type": "drink", "approved_at": "2026-05-26", "url": null, "sci": "Rubus idaeus", "en": "Raspberry", "de": "Himbeere", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 9, "species_id": 11, "dish": "Heather Flower & Burnt Honey Sauce with Roasted Celeriac", "line": "Heather flowers carry an ancient memory — bitter, honeyed, faintly herbal — and they work best when you stop thinking…", "season": "year-round", "type": "condiment", "approved_at": "2026-05-26", "url": null, "sci": "Calluna vulgaris", "en": "Ling", "de": "Heidekraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 11, "species_id": 21, "dish": "Hairy Bittercress with Anchovy, Walnut & Pomegranate", "line": "Cardamine hirsuta is winter gold — a sharp, peppery leaf that arrives when the soil turns cold and everything else has…", "season": "autumn", "type": "other", "approved_at": "2026-05-27", "url": null, "sci": "Cardamine hirsuta", "en": "Hairy bittercress", "de": "Behaartes Schaumkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 12, "species_id": 98, "dish": "Mugwort Mochi with Brown Butter, Sea Salt & Crisp Sage", "line": "Mugwort works here because it's bitter without cruelty — that grassy, slightly metallic edge cuts through rich…", "season": "spring", "type": "sweet", "approved_at": "2026-05-27", "url": null, "sci": "Artemisia vulgaris", "en": "Mugwort", "de": "Gemeiner Beifuss", "caution": true, "source": "ai_generated", "warnings": [{"kind": "look_alike", "heading": "Look-alikes", "text": "Can be confused with monkshood (Aconitum napellus) before flowering — monkshood is deadly. Check the leaf underside to distinguish: mugwort has a dense, silvery-white hairy underside; monkshood is smooth and green.", "reviewed": true}]}, {"recipe_id": 14, "species_id": 33, "dish": "Barbarea Vulgaris with Anchovy, Lemon & Burnt Breadcrumb", "line": "Wintercress arrives when you need it most — a muscular, peppery green that holds its structure through cooking and…", "season": "winter", "type": "other", "approved_at": "2026-05-27", "url": null, "sci": "Barbarea vulgaris", "en": "Wintercress", "de": "Gemeines Barbarakraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 15, "species_id": 37, "dish": "Ground Ivy Soup with Charred Onion and Crisp Sorrel", "line": "Ground ivy arrives when little else is generous — February, March, when you're tired of winter.", "season": "spring", "type": "main", "approved_at": "2026-05-27", "url": null, "sci": "Glechoma hederacea", "en": "Ground ivy", "de": "Gundermann", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 16, "species_id": 53, "dish": "Nipplewort with Anchovy, Garlic, and Sourdough Breadcrumbs", "line": "Nipplewort arrives in spring with a particular kind of bitterness — not aggressive, more like a clean radish bite with…", "season": "spring", "type": "other", "approved_at": "2026-05-27", "url": null, "sci": "Lapsana communis", "en": "Nipplewort", "de": "Gewöhnlicher Rainkohl", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 21, "species_id": 78, "dish": "Silverweed Root Soup with Charred Leeks and Walnut Oil", "line": "Silverweed roots are thin, yes—but that's their gift, not a limitation.", "season": "winter", "type": "main", "approved_at": "2026-05-27", "url": null, "sci": "Argentina anserina", "en": "Silverweed", "de": "Gänse-Fingerkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 22, "species_id": 80, "dish": "Cleavers & Burnt Onion Broth with Roasted Seed Coffee", "line": "Cleavers arrives in spring with an almost mineral bitterness—the kind that wakes your palate up.", "season": "spring", "type": "main", "approved_at": "2026-05-27", "url": null, "sci": "Galium aparine", "en": "Cleavers", "de": "Gewöhnliches Kletten-Labkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 24, "species_id": 86, "dish": "Sticky Mouse-ear Chickweed with Preserved Lemon, Almonds, and Wild Garlic Oil", "line": "Mouse-ear chickweed is one of those plants that feels almost luminous when you forage it properly — the young leaves…", "season": "year-round", "type": "other", "approved_at": "2026-05-27", "url": null, "sci": "Cerastium glomeratum", "en": "Sticky Mouse-ear", "de": "Knäuel-Hornkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 26, "species_id": 92, "dish": "Wood Avens Root Tea with Roasted Roots, Toasted Grains, and Honey", "line": "Wood avens root tastes like someone whispered clove and cinnamon into a piece of fresh, lightly bitter earth.", "season": "summer", "type": "drink", "approved_at": "2026-05-27", "url": null, "sci": "Geum urbanum", "en": "Wood Avens", "de": "Echte Nelkenwurz", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 28, "species_id": 104, "dish": "Black Medick with Charred Onions, Walnuts, and Fermented Barley", "line": "The leaves are dense with protein and calcium, which means they have real substance when cooked.", "season": "year-round", "type": "other", "approved_at": "2026-05-27", "url": null, "sci": "Medicago lupulina", "en": "Hop Clover", "de": "Hopfenklee", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 30, "species_id": 8, "dish": "Corn Mint Broth with Early Greens and Burnt Alliums", "line": "Corn mint has a sharper, more austere character than garden mint — there's a mineral edge underneath the cool, and a…", "season": "spring", "type": "main", "approved_at": "2026-05-27", "url": null, "sci": "Mentha arvensis", "en": "Corn mint", "de": "Kornminze", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 32, "species_id": 18, "dish": "Great Yellow-cress with Smoked Mackerel, Beetroot, and Burnt Onion", "line": "Great yellow-cress is a plant that wants to be noticed.", "season": "year-round", "type": "other", "approved_at": "2026-05-27", "url": null, "sci": "Rorippa amphibia", "en": "Great yellowcress", "de": "Wasser-Sumpfkresse", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 33, "species_id": 20, "dish": "Oxlip and Early Nettle Soup with Fermented Butter", "line": "The oxlip arrives in late winter when you're tired of stored roots and dried things.", "season": "spring", "type": "main", "approved_at": "2026-05-27", "url": null, "sci": "Primula elatior", "en": "Oxlip", "de": "Hohe Primel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 34, "species_id": 49, "dish": "Bletted Whitebeam Paste with Crispy Grains and Burned Honey", "line": "Whitebeam fruit spent half the year overlooked in hedgerows across northern Europe—small, hard, forbidding—until…", "season": "winter", "type": "preserve", "approved_at": "2026-05-27", "url": null, "sci": "Aria edulis", "en": "Whitebeam", "de": "Echt-Mehlbeere", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 35, "species_id": 50, "dish": "Creeping Jenny Leaf Broth with Sorrel, Nettle, and Fermented Grains", "line": "Creeping jenny has a clean, slightly mineral bite — a bit like young sorrel but softer, less aggressive.", "season": "spring", "type": "main", "approved_at": "2026-05-27", "url": null, "sci": "Lysimachia nummularia", "en": "Running Jenny", "de": "Münzkraut", "caution": false, "source": "ai_generated", "warnings": [{"kind": "preparation", "heading": "Preparation", "text": "Historically used as a pot herb in small quantities. Contains saponins — blanch before eating and do not consume raw in large amounts. No confirmed serious toxicity at culinary use levels, but not a well-established food plant. Use sparingly.", "reviewed": true}]}, {"recipe_id": 36, "species_id": 52, "dish": "Ajuga Shoots with Charred Onion, Walnut, and Black Garlic", "line": "The young shoots arrive in early spring with an almost mineral bitterness, clean herbaceous snap, and a faint nuttiness that sits somewhere between watercress and young horehound.", "season": "spring", "type": "other", "approved_at": "2026-05-27", "url": null, "sci": "Ajuga reptans", "en": "Ajuga", "de": "Kriech-Günsel", "caution": false, "source": "ai_generated", "warnings": [{"kind": "preparation", "heading": "Preparation", "text": "Contains digitalis-like (cardioactive) compounds. Not for internal medicinal use; traditional use is external (wound care). Edible only in small amounts.", "reviewed": true}]}, {"recipe_id": 38, "species_id": 61, "dish": "Stewed Plymouth Pears with Honeycomb and Black Garlic", "line": "Plymouth pears are sharp, alive things — small enough to fit a thumbnail, dense with flavour that punches above their…", "season": "year-round", "type": "other", "approved_at": "2026-05-27", "url": null, "sci": "Pyrus cordata", "en": "Plymouth pear", "de": "", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 41, "species_id": 79, "dish": "Hawthorn Leaf Tea with Roasted Seed Broth and Charred Shoots", "line": "Hawthorn leaves are often overlooked in favour of the berries, but they carry something sharper, more alive — a subtle…", "season": "spring", "type": "drink", "approved_at": "2026-05-27", "url": null, "sci": "Crataegus monogyna", "en": "Hawthorn", "de": "Eingriffliger Weissdorn", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 42, "species_id": 81, "dish": "Bellis perennis Leaf & Bud Salad with Bitter Greens, Fermented Grains, and Anchovy Oil", "line": "Daisy leaves carry a subtle tension — that acrid bite the old herbals mention sits alongside a genuine freshness that…", "season": "winter", "type": "side", "approved_at": "2026-05-27", "url": null, "sci": "Bellis perennis", "en": "Daisy", "de": "Ausdauerndes Gänseblümchen", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 44, "species_id": 28, "dish": "Charred Marsh Thistle Stems with Anchovy, Burnt Garlic & Wild Thyme", "line": "Marsh thistle is one of those plants that teaches you something the moment you taste it.", "season": "spring", "type": "other", "approved_at": "2026-05-27", "url": null, "sci": "Cirsium palustre", "en": "Marsh thistle", "de": "Sumpf-Kratzdistel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 46, "species_id": 95, "dish": "Plantain Leaf Broth with Charred Alliums and Toasted Seeds", "line": "The leaves carry a subtle bitterness that sits somewhere between sorrel and dock, with an almost mineral quality underneath.", "season": "spring", "type": "main", "approved_at": "2026-05-27", "url": null, "sci": "Plantago major", "en": "Plantain", "de": "Wegebreit", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 47, "species_id": 96, "dish": "Ribwort Plantain, Charred Onion & Walnut — A Green Bitter for Spring", "line": "Ribwort is a plant that rewards patience.", "season": "spring", "type": "other", "approved_at": "2026-05-27", "url": null, "sci": "Plantago lanceolata", "en": "Ribwort", "de": "Spitz-Wegerich", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 48, "species_id": 97, "dish": "Aspen Inner Bark Flatbread with Rendered Bone Fat and Wild Garlic", "line": "Aspen inner bark tastes of nothing much on its own — slightly sweet, faintly resinous, a bit woody — which is exactly…", "season": "spring", "type": "side", "approved_at": "2026-05-27", "url": null, "sci": "Populus tremula", "en": "Aspen", "de": "Aspe", "caution": false, "source": "ai_generated", "warnings": [{"kind": "preparation", "heading": "Preparation", "text": "Inner bark and catkins have historical use as famine food. Contains salicylates (related to aspirin) — avoid if sensitive to aspirin or salicylates. Not a conventional food plant; culinary use is experimental and should be in small quantities only.", "reviewed": true}]}, {"recipe_id": 49, "species_id": 286, "dish": "Dandelion Leaf Salad with Roasted Root Dressing, Caper-Preserved Buds, and a Warm Anchovy and Wild Garlic Fat", "line": "Dandelion is one of those plants that rewards patience and understanding — treat it carelessly and it bites back with…", "season": "spring", "type": "side", "approved_at": "2026-06-02", "url": null, "sci": "Taraxacum officinale", "en": "Dandelion", "de": "Bettsaier", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 50, "species_id": 135, "dish": "Cuckoo Flower, New Potato & Soft Egg Salad with Wild Herb Dressing", "line": "Cuckoo flower arrives in the meadows just as the season is shifting its weight — early spring, wet ground, a sharpness…", "season": "spring", "type": "side", "approved_at": "2026-06-02", "url": null, "sci": "Cardamine pratensis", "en": "Cuckoo flower", "de": "Wiesenschaumkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 51, "species_id": 236, "dish": "Briancon Manna and Larch Inner Bark Flatbread with Wild Honey, Cultured Butter, and Sea Salt", "line": "European larch is one of those trees that asks you to slow down and actually look — not just at the needles or the…", "season": "summer", "type": "side", "approved_at": "2026-06-02", "url": null, "sci": "Larix decidua", "en": "European Larch", "de": "Europaeische Laerche", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 52, "species_id": 121, "dish": "Wood Violet Broth with Spring Barley and Wild Greens", "line": "Viola riviniana — the common dog-violet — earns its place here not as decoration but as the structural backbone of a…", "season": "spring", "type": "main", "approved_at": "2026-06-02", "url": null, "sci": "Viola riviniana", "en": "Common dog-violet", "de": "Hain-Veilchen", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 53, "species_id": 101, "dish": "Common Vetch & Spiced Grain Flatbread with Wild Herb Oil", "line": "Vetch is one of those plants that rewards patience and a little cunning — the seeds are nutritious but blunt on their…", "season": "spring", "type": "side", "approved_at": "2026-06-02", "url": null, "sci": "Vicia sativa", "en": "Tare", "de": "Futterwicke", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 54, "species_id": 60, "dish": "Valerian Leaf Salt with Roasted Apple and Aged Goat's Curd", "line": "Valerian doesn't announce itself loudly — it earns your attention gradually.", "season": "summer", "type": "condiment", "approved_at": "2026-06-02", "url": null, "sci": "Valeriana officinalis", "en": "Valerian", "de": "Arznei-Baldrian", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 55, "species_id": 93, "dish": "Nettle, White Miso & Toasted Hazelnut Soup", "line": "Nettles have a flavour that sits somewhere between spinach and the sea — deep, mineral, faintly grassy — and that…", "season": "spring", "type": "main", "approved_at": "2026-06-02", "url": null, "sci": "Urtica dioica", "en": "Stinging nettle", "de": "Grosse Brennessel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 56, "species_id": 23, "dish": "Wych Elm Samara Salad with Toasted Hazelnut, Sheep's Cheese, and Wild Herb Oil", "line": "The immature samaras of wych elm are one of spring's best-kept secrets — papery, protein-dense, and carrying an…", "season": "spring", "type": "side", "approved_at": "2026-06-02", "url": null, "sci": "Ulmus glabra", "en": "Wych Elm", "de": "Berg-Ulme", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 57, "species_id": 107, "dish": "Elderberry, Roasted Bone Marrow & Wild Thyme — A Sauce for Grilled Lamb or Aged Beef", "line": "Raw, it's tannic and slightly bitter, almost aggressive.", "season": "year-round", "type": "side", "approved_at": "2026-06-02", "url": null, "sci": "Sambucus nigra", "en": "Elderberry", "de": "Schwarzer Holunder", "caution": true, "source": "ai_generated", "warnings": [{"kind": "preparation", "heading": "Caution", "text": "Edible with caution — flowers and cooked berries only. Raw berries, leaves, stems and bark are toxic; always cook the berries before eating.", "reviewed": true}]}, {"recipe_id": 60, "species_id": 343, "dish": "Grand Fir Shoot Tea with Honey, Lemon, and Wild Ferment Shrub", "line": "Abies grandis — Grand Fir", "season": "spring", "type": "drink", "approved_at": "2026-06-02", "url": null, "sci": "Abies grandis", "en": "Grand Fir", "de": "Küsten-Tanne", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 61, "species_id": 202, "dish": "Yarrow-Cured Goat's Cheese with Roasted Beetroot, Toasted Walnuts, and Wildflower Honey", "line": "The young leaves have a complexity that makes most cultivated herbs look polite.", "season": "year-round", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Achillea millefolium", "en": "Yarrow", "de": "Gemeine Schafgarbe", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 62, "species_id": 201, "dish": "Achillea nobilis — Noble Yarrow Flatbreads with Whipped Feta, Burnt Honey & Wild Herb Oil", "line": "Most people would use it as a garnish and miss the whole conversation.", "season": "year-round", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Achillea nobilis", "en": "Yarrow", "de": "Edel-Schafgarbe", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 64, "species_id": 295, "dish": "Ramsons & New Potato Soup with Wild Garlic Oil and Fermented Bulbil Capers", "line": "Ramsons arrive in the woods just when you need them most — that late winter, early spring moment when everything still…", "season": "spring", "type": "main", "approved_at": "2026-06-02", "url": null, "sci": "Allium ursinum", "en": "Ramsons", "de": "Bärlauch", "caution": true, "source": "ai_generated", "warnings": [{"kind": "look_alike", "heading": "Look-alikes", "text": "Deadly look-alikes: lily of the valley and autumn crocus can grow among it. Crush each leaf — only wild garlic smells of garlic (the smell stays on your fingers, so check leaf by leaf).", "reviewed": true}]}, {"recipe_id": 67, "species_id": 278, "dish": "Goatsbeard Shoots with Brown Butter, Wild Garlic Capers, and Toasted Hazelnuts", "line": "Aruncus dioicus arrives in early spring with a short, uncompromising window — the budlings and young stems are tender…", "season": "spring", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Aruncus dioicus", "en": "Goatsbeard", "de": "Wald-Geißbart", "caution": false, "source": "ai_generated", "warnings": [{"kind": "preparation", "heading": "Preparation", "text": "Edible with caution — harvest only young, whitish shoots before leaves develop; mature shoots and leaves contain cyanogenic compounds (prunasin) that increase as the plant matures. Always cook before eating; do not eat raw. (Source: PFAF — 'some caution is advised'; Fontanari et al. 2016, phytochemistry of A. dioicus shoots.)", "reviewed": true}]}, {"recipe_id": 68, "species_id": 317, "dish": "Burdock Root with Black Garlic, Preserved Lemon & Toasted Sesame", "line": "Burdock is one of those roots that rewards patience and a generous hand with seasoning — left to its own devices it's…", "season": "spring", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Arctium lappa", "en": "Greater burdock", "de": "Grosse Klette", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 70, "species_id": 299, "dish": "Black Hawthorn & Walnut Muhammara with Warm Flatbread", "line": "Crataegus pentagyna — the five-seeded black hawthorn — is one of the more serious wild fruits in the European foraging…", "season": "year-round", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Crataegus pentagyna", "en": "Five-seeded Hawthorn", "de": "", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 71, "species_id": 276, "dish": "Bitter Water Cress, Burrata, and Preserved Lemon — with a Warm Hazelnut and Caper Dressing", "line": "Cardamine amara grows where the ground stays wet — alongside streams, in marshland margins, in the shade of alder carr.", "season": "spring", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Cardamine amara", "en": "Large bittercress", "de": "Kressen-Schaumkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 72, "species_id": 198, "dish": "Sweet Woodruff Panna Cotta with Macerated Strawberries and Elderflower", "line": "Sweet woodruff is one of those plants that rewards patience — it barely announces itself until you bruise a handful of…", "season": "spring", "type": "sweet", "approved_at": "2026-06-02", "url": null, "sci": "Galium odoratum", "en": "Woodruff", "de": "Waldmeister", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 73, "species_id": 181, "dish": "Woodland Strawberry, Whipped Sheep's Milk Labneh, Toasted Buckwheat, Wild Honey", "line": "Wild strawberries are not small strawberries.", "season": "autumn", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Fragaria vesca", "en": "Wild Strawberry", "de": "Walderdbeere", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 74, "species_id": 329, "dish": "Spring Beech Leaf Salad with Toasted Beechnut, Aged Sheep's Cheese & Wild Herb Dressing", "line": "There's a window of maybe three weeks in spring when beech does something quietly extraordinary — those translucent…", "season": "spring", "type": "side", "approved_at": "2026-06-02", "url": null, "sci": "Fagus sylvatica", "en": "European Beech", "de": "Rotbuche", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 78, "species_id": 161, "dish": "Roasted Apple with Brown Butter, Preserved Lemon & Wild Thyme", "line": "The apple is one of those fruits that people underestimate precisely because they know it so well.", "season": "year-round", "type": "side", "approved_at": "2026-06-02", "url": null, "sci": "Malus domestica", "en": "Apple", "de": "Apfel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 79, "species_id": 214, "dish": "Ox-Eye Daisy Shoots with Charred Spring Onions, Labneh, and Preserved Lemon", "line": "Ox-eye daisy is one of those plants that rewards boldness — the young spring shoots carry a genuine bitterness and a…", "season": "spring", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Leucanthemum vulgare", "en": "Field Daisy", "de": "Wiesenmargerite", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 80, "species_id": 205, "dish": "Prickly Lettuce with Preserved Lemon, Toasted Cumin Oil & Soft-Boiled Egg", "line": "Lactuca serriola is the wild ancestor of the lettuce you grew up with, and it carries that lineage with a sharpness…", "season": "year-round", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Lactuca serriola", "en": "Wild Lettuce", "de": "Kompass-Lattich", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 81, "species_id": 340, "dish": "Melissa officinalis — Lemon Balm", "line": "Lemon balm sits in an interesting gap — it smells more intensely citrus than it tastes, and that gap is exactly where…", "season": "year-round", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Melissa officinalis", "en": "Lemon balm", "de": "Zitronen-Melisse", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 82, "species_id": 290, "dish": "White Melilot & Split Pea Soup with Wilted Shoots and Flower Oil", "line": "White melilot carries something genuinely unusual — a warm, hay-like sweetness that sits close to vanilla but…", "season": "year-round", "type": "main", "approved_at": "2026-06-02", "url": null, "sci": "Melilotus albus", "en": "White Melilot", "de": "Weißer Honigklee", "caution": true, "source": "ai_generated", "warnings": [{"kind": "preparation", "heading": "Caution", "text": "Use fresh or well dried; mouldy or fermented sweet clover is toxic (thins the blood).", "reviewed": true}]}, {"recipe_id": 83, "species_id": 341, "dish": "Malva moschata with Labneh, Preserved Lemon & Toasted Seed", "line": "Musk mallow doesn't shout.", "season": "autumn", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Malva moschata", "en": "Musk mallow", "de": "Moschus-Malve", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 84, "species_id": 238, "dish": "Spearmint Labneh with Charred Courgette, Toasted Cumin & Wild Honey", "line": "Spearmint has a cleaner, cooler edge than peppermint — less confrontational, more conversational.", "season": "year-round", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Mentha spicata", "en": "Spearmint", "de": "Ähren-Minze", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 85, "species_id": 291, "dish": "Horse Mint & Charred Courgette Salad with Labneh, Preserved Lemon and Toasted Seeds", "line": "Horse mint carries a wilder edge than the cultivated mint most kitchens know — more resinous, more volatile, with that…", "season": "summer", "type": "side", "approved_at": "2026-06-02", "url": null, "sci": "Mentha longifolia", "en": "Horsemint", "de": "Rossminze", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 86, "species_id": 179, "dish": "Water Mint Granita with Charred Cucumber and Labneh", "line": "Water mint is the wild ancestor behind most of what we recognise as mint flavour — but it carries something rawer and…", "season": "year-round", "type": "sweet", "approved_at": "2026-06-02", "url": null, "sci": "Mentha aquatica", "en": "Mint", "de": "Wasserminze", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 87, "species_id": 281, "dish": "Wood Sorrel Crème Fraîche with Charred Spring Onions, Toasted Hazelnuts, and Rye", "line": "Wood sorrel carries a brightness that is almost architectural — it doesn't just add acidity, it lifts everything…", "season": "spring", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Oxalis acetosella", "en": "European wood-sorrel", "de": "Gemeiner Sauerklee", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 88, "species_id": 170, "dish": "Slow-Braised White Beans with Origanum onites, Charred Tomato & Preserved Lemon", "line": "Origanum onites earns its place here not as background noise but as the structural flavour — that slightly bitter…", "season": "year-round", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Origanum onites", "en": "Pot marjoram", "de": "Griechischer Oregano", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 89, "species_id": 180, "dish": "Watercress, Burnt Butter & Hazelnut with a Soft Egg", "line": "Watercress is one of the few wild plants that genuinely earns its place at the centre of a dish rather than the edge…", "season": "spring", "type": "other", "approved_at": "2026-06-02", "url": null, "sci": "Nasturtium officinale", "en": "Water-cress", "de": "Bachkresse", "caution": true, "source": "ai_generated", "warnings": [{"kind": "preparation", "heading": "Caution", "text": "Wild watercress can carry liver fluke where sheep or cattle graze — cook it unless it comes from clean, stock-free water.", "reviewed": true}]}, {"recipe_id": 90, "species_id": 314, "dish": "Poppy Seed & Roasted Garlic Flatbread with Whipped Feta and Preserved Lemon", "line": "Papaver somniferum seeds are one of the most underused things in a serious kitchen.", "season": "year-round", "type": "side", "approved_at": "2026-06-04", "url": null, "sci": "Papaver somniferum", "en": "Opium Poppy", "de": "Blaumohn", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 91, "species_id": 77, "dish": "Pellitory-of-the-Wall with Whipped Sheep's Curd, Preserved Lemon & Toasted Dukkah", "line": "The young shoots are tender, slightly mucilaginous when warm, and carry a clean, faintly herbaceous flavour that sits somewhere between young nettle and mâche.", "season": "spring", "type": "other", "approved_at": "2026-06-04", "url": null, "sci": "Parietaria judaica", "en": "Wall pellitory", "de": "Ausgebreitetes Glaskraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 92, "species_id": 143, "dish": "Roasted Spruce Cone Syrup with Whipped Labneh, Toasted Rye, and Young Shoot Oil", "line": "The immature female cones of Caucasian spruce are one of those genuinely surprising things you encounter through…", "season": "spring", "type": "preserve", "approved_at": "2026-06-04", "url": null, "sci": "Picea orientalis", "en": "Caucasian Spruce", "de": "", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 93, "species_id": 189, "dish": "Scots Pine Inner Bark Bread with Pine Salt and Birch Honey", "line": "Scots pine inner bark carries something ancient in it — a dry, faintly resinous sweetness that sits somewhere between…", "season": "spring", "type": "side", "approved_at": "2026-06-04", "url": null, "sci": "Pinus sylvestris", "en": "Scots Pine", "de": "Daehle", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 94, "species_id": 289, "dish": "Toasted Stone Pine Nut Pilaf with Saffron, Preserved Lemon & Burnt Butter", "line": "Pinus pinea produces the finest pine nuts in commerce — larger, softer, and more complex than the little teardrops…", "season": "spring", "type": "main", "approved_at": "2026-06-04", "url": null, "sci": "Pinus pinea", "en": "Stone Pine", "de": "Pinie", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 96, "species_id": 125, "dish": "Acorn Flour Flatbreads with Charred Leek, Whey Labneh & Wild Garlic Oil", "line": "It behaves differently from wheat — denser, more mineral, slightly earthy — and it needs partners that can meet it.", "season": "year-round", "type": "other", "approved_at": "2026-06-04", "url": null, "sci": "Quercus petraea", "en": "Sessile Oak", "de": "Artengruppe Trauben-Eiche", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 97, "species_id": 100, "dish": "Dog Rose Hip & Preserved Lemon Lamb Shoulder with Rosehip Harissa", "line": "Rosehips are one of those ingredients that most people walk past in October without a second thought, which suits me…", "season": "autumn", "type": "other", "approved_at": "2026-06-04", "url": null, "sci": "Rosa canina", "en": "Dog Rose", "de": "Hundsrose", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 98, "species_id": 99, "dish": "Sweet-Briar Hip & Wild Honey Jelly with Rose Petal Cream", "line": "That's the eglantine character.", "season": "year-round", "type": "preserve", "approved_at": "2026-06-04", "url": null, "sci": "Rosa rubiginosa", "en": "Eglantine", "de": "Wein-Rose", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 99, "species_id": 277, "dish": "Rosa dumalis Hip Vinegar Glaze — Roasted Celeriac with Wild Hip Reduction, Toasted Seed Dust & Bitter Leaf", "line": "Rosa dumalis sits close enough to the common dog rose that most people walk past it without a second thought, but get…", "season": "autumn", "type": "condiment", "approved_at": "2026-06-04", "url": null, "sci": "Rosa dumalis", "en": "Glaucous Dog Rose", "de": "Vogesen-Rose", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 100, "species_id": 171, "dish": "Rosa Rugosa Hip Preserve with Saffron, Rose Water & Warm Spice — Spread for Flatbread or Cheese", "line": "Rosa rugosa gives you the best hip of any rose in this climate — thick-fleshed, generously sized, and sweet in a way…", "season": "autumn", "type": "preserve", "approved_at": "2026-06-04", "url": null, "sci": "Rosa rugosa", "en": "Rugosa rose", "de": "Kartoffel-Rose", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 101, "species_id": 348, "dish": "Braised Wood Dock with Chickpeas, Preserved Lemon & Harissa Brown Butter", "line": "Wood dock is one of those plants that rewards patience — not in the cooking, but in the harvesting.", "season": "year-round", "type": "other", "approved_at": "2026-06-04", "url": null, "sci": "Rumex sanguineus", "en": "Wood Dock", "de": "Blut-Ampfer", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 102, "species_id": 166, "dish": "Sheep Sorrel, Whipped Goat's Curd & Toasted Rye — with Honey and Burned Lemon", "line": "Sheep sorrel is one of those plants that rewards patience.", "season": "year-round", "type": "other", "approved_at": "2026-06-04", "url": null, "sci": "Rumex acetosella", "en": "Red sorrel", "de": "Kleiner Sauer-Ampfer", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 103, "species_id": 174, "dish": "Brown Butter Sage with White Beans, Preserved Lemon & Toasted Walnuts", "line": "Sage is one of those plants that asks you to respect it.", "season": "year-round", "type": "other", "approved_at": "2026-06-04", "url": null, "sci": "Salvia officinalis", "en": "Sage", "de": "Echter Salbei", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 104, "species_id": 199, "dish": "Salad Burnet Labneh with Charred Flatbread and Wild Honey", "line": "Salad burnet is one of those plants that rewards the forager who pays attention — small, fiddly, easy to overlook, but…", "season": "year-round", "type": "side", "approved_at": "2026-06-04", "url": null, "sci": "Sanguisorba minor", "en": "Salad Burnet", "de": "Kleiner Wiesenknopf", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 105, "species_id": 347, "dish": "Hedge Mustard Flatbread with Whipped Feta, Preserved Lemon & Toasted Seed Dust", "line": "Hedge mustard is one of those plants that rewards patience.", "season": "spring", "type": "side", "approved_at": "2026-06-04", "url": null, "sci": "Sisymbrium officinale", "en": "Hedge Mustard", "de": "Gewöhnliche Rauke", "caution": false, "source": "ai_generated", "warnings": [{"kind": "preparation", "heading": "Preparation", "text": "Young leaves and seeds edible, with a strong mustard flavour. Older leaves become very bitter and tough — harvest before flowering for best results. No significant toxicity, but the strong glucosinolate content may cause digestive irritation in sensitive individuals if consumed in large amounts.", "reviewed": true}]}, {"recipe_id": 106, "species_id": 164, "dish": "Maidenstears with Brown Butter, Lemon, and Aged Pecorino", "line": "Bladder campion is one of those plants that rewards the people paying attention in early spring — sweet young leaves…", "season": "spring", "type": "other", "approved_at": "2026-06-04", "url": null, "sci": "Silene vulgaris", "en": "Bladder campion", "de": "Gemeines Leimkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 107, "species_id": 207, "dish": "Sowthistle, Preserved Lemon & Chickpea with Scorched Flatbread", "line": "Sonchus arvensis has a clean, slightly bitter edge that sits somewhere between young dandelion and spinach — mineral…", "season": "year-round", "type": "other", "approved_at": "2026-06-04", "url": null, "sci": "Sonchus arvensis", "en": "Sowthistle", "de": "Acker-Gänsedistel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 108, "species_id": 327, "dish": "Sonchus asper with Preserved Lemon, Labneh, and Toasted Dukkah", "line": "Prickly sow-thistle is more useful than most people give it credit for — young leaves with genuine mild sweetness…", "season": "year-round", "type": "other", "approved_at": "2026-06-04", "url": null, "sci": "Sonchus asper", "en": "Spiny sowthistle", "de": "Raue Gänsedistel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 109, "species_id": 325, "dish": "Rowan Berry & Walnut Paste with Burnt Honey, Aged Cheese, and Rye", "line": "Rowan is one of those ingredients that demands you work with it rather than against it — its acidity is fierce, its…", "season": "autumn", "type": "preserve", "approved_at": "2026-06-04", "url": null, "sci": "Sorbus aucuparia", "en": "Rowan", "de": "Eberesche", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 110, "species_id": 193, "dish": "Lesser Stitchwort with Toasted Sesame, Preserved Lemon, and Spring Herbs", "line": "Lesser Stitchwort gets overlooked because it looks too delicate to mean anything — those thread-fine stems, those tiny…", "season": "spring", "type": "other", "approved_at": "2026-06-04", "url": null, "sci": "Stellaria graminea", "en": "Lesser Stitchwort", "de": "Gras-Sternmiere", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 111, "species_id": 213, "dish": "Whole Roasted Celeriac with Creeping Thyme, Brown Butter, and Preserved Lemon", "line": "Thymus praecox — mother of thyme — grows close to the ground and catches everything: sun, minerals, the warmth held in…", "season": "year-round", "type": "side", "approved_at": "2026-06-04", "url": null, "sci": "Thymus praecox", "en": "Creeping thyme", "de": "Frühblühender Thymian", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 112, "species_id": 165, "dish": "Slow-Braised White Beans with Breckland Thyme, Preserved Lemon and Toasted Cumin Oil", "line": "Thymus serpyllum is a wilder, earthier cousin of the cultivated thyme you'll find in every kitchen garden — lower to…", "season": "year-round", "type": "other", "approved_at": "2026-06-04", "url": null, "sci": "Thymus serpyllum", "en": "Wild thyme", "de": "Frühblühender Thymian", "caution": false, "source": "ai_generated", "warnings": [{"kind": "look_alike", "heading": "Look-alikes", "text": "Wild Thyme / Breckland Thyme\nSummary\n\nThe classic creeping wild thyme. Forms mats of woody stems and is often found on dry, open ground.\n\nKey Features\nCreeping stems\nSmall leaves\nOften grey-green\nUsually lower and looser than T. praecox\nVariable species\nGrowth Form\n===========\n===========\n===========\n   |  |  |\nHabitat\nSandy soils\nDry banks\nOpen tracksides\nHeath-like ground\nThin grassland\nFlavour\nMild thyme\nEarthy\nOften slightly lemony\nLess peppery than T. pulegioides\nWatch For\n\nCan be difficult to separate from T. praecox. Many records are uncertain or intermediate.", "reviewed": true}]}, {"recipe_id": 113, "species_id": 186, "dish": "Broad-leaved Thyme, Roasted Courgette & Labneh with Charred Lemon", "line": "Thymus pulegioides sits somewhere between common thyme and pennyroyal in character — warmer, slightly more floral…", "season": "summer", "type": "side", "approved_at": "2026-06-04", "url": null, "sci": "Thymus pulegioides", "en": "Large thyme", "de": "Arzneithymian", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 114, "species_id": 175, "dish": "Red Clover Flower Tea Cake with Dried Leaf Crumb and Honey Glaze", "line": "Red clover carries more than most people give it credit for.", "season": "spring", "type": "sweet", "approved_at": "2026-06-04", "url": null, "sci": "Trifolium pratense", "en": "Red clover", "de": "Wiesenklee", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 115, "species_id": 93, "dish": "Nettle, Preserved Lemon & Smoked Almond Soup with Spiced Yoghurt", "line": "Gathered in early spring when the shoots are still tight and dark, before the plant has any idea what it's about to…", "season": "spring", "type": "main", "approved_at": "2026-06-04", "url": null, "sci": "Urtica dioica", "en": "Stinging nettle", "de": "Grosse Brennessel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 116, "species_id": 315, "dish": "Bilberry, Burnt Honey & Labneh Tart with Thyme Oil", "line": "Bilberry is not blueberry.", "season": "year-round", "type": "main", "approved_at": "2026-06-04", "url": null, "sci": "Vaccinium myrtillus", "en": "Bilberry", "de": "Heidelbeere", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 117, "species_id": 300, "dish": "Hairy Tare & Spiced Tomato with Preserved Lemon and Wilted Greens", "line": "Hairy tare is a wild vetch that most people walk past without a second look — a thread-fine climber tangled in…", "season": "autumn", "type": "other", "approved_at": "2026-06-04", "url": null, "sci": "Vicia hirsuta", "en": "Hairy tare", "de": "Behaarte Wicke", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 122, "species_id": 359, "dish": "Silver Fir Bark & Rye Bread Porridge with Fermented Fir Tip Vinegar", "line": "This is not a novelty bread.", "season": "winter", "type": "main", "approved_at": "2026-06-14", "url": null, "sci": "Abies alba", "en": "Silver Fir", "de": "Silbertanne", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 123, "species_id": 410, "dish": "Field Maple Syrup & Hay-Smoked Roots", "line": "Field maple runs thin and early, shy with its sugar compared to its Canadian cousins, but that restraint is part of…", "season": "autumn", "type": "other", "approved_at": "2026-06-14", "url": null, "sci": "Acer campestre", "en": "Field Maple", "de": "Feld-Ahorn", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 125, "species_id": 486, "dish": "Sycamore Leaf-Wrapped Roots, with Pickled Seed Keys and a Warm Sap & Honey Glaze", "line": "Acer pseudoplatanus gets a bad name in some circles—invasive, they say, or too common to be loved.", "season": "spring", "type": "other", "approved_at": "2026-06-14", "url": null, "sci": "Acer pseudoplatanus", "en": "Acer ser. Acer", "de": "Berg-Ahorn", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 126, "species_id": 583, "dish": "Caramelised Onion Broth with Slow-Roasted Allium & Foraged Herbs", "line": "They know it cooked, sure — but they've not sat with it, let it go through its stages, watched it move from sharp and…", "season": "spring", "type": "main", "approved_at": "2026-06-14", "url": null, "sci": "Allium cepa", "en": "Onion", "de": "", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 127, "species_id": 274, "dish": "Anthyllis Vulneraria Flower Head Tea", "line": "Recipe: Anthyllis Vulneraria Flower Head Tea", "season": "spring", "type": "drink", "approved_at": "2026-06-14", "url": null, "sci": "Anthyllis vulneraria", "en": "Common Kidney-Vetch", "de": "Echter Wundklee", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 128, "species_id": 257, "dish": "Horseradish Leaf & Potato Cake with Smoked Mackerel", "line": "This plant wants you to take it seriously.", "season": "year-round", "type": "sweet", "approved_at": "2026-06-14", "url": null, "sci": "Armoracia rusticana", "en": "Horseradish", "de": "Gewöhnlicher Meerrettich", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 129, "species_id": 278, "dish": "Goatsbeard Shoots, Brown Butter & Wild Garlic", "line": "Every spring, when the goatsbeard pushes through the damp earth, I find myself watching it with the same patience I…", "season": "spring", "type": "other", "approved_at": "2026-06-14", "url": null, "sci": "Aruncus dioicus", "en": "Goatsbeard", "de": "Wald-Geißbart", "caution": false, "source": "ai_generated", "warnings": [{"kind": "preparation", "heading": "Preparation", "text": "Edible with caution — harvest only young, whitish shoots before leaves develop; mature shoots and leaves contain cyanogenic compounds (prunasin) that increase as the plant matures. Always cook before eating; do not eat raw. (Source: PFAF — 'some caution is advised'; Fontanari et al. 2016, phytochemistry of A. dioicus shoots.)", "reviewed": true}]}, {"recipe_id": 130, "species_id": 420, "dish": "Betula Pendula Birch Syrup Sorbet with Saffron Poached Pears and a Hint of Anise", "line": "Today, we shall dance an ode to this humble tree in the form of a refreshing sorbet, accompanied by saffron-kissed pears and a whisper of anise.", "season": "year-round", "type": "sweet", "approved_at": "2026-06-14", "url": null, "sci": "Betula pendula", "en": "Common Birch", "de": "Haenge-Birke", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 131, "species_id": 429, "dish": "Melvin's Sweet Chestnut Coffee with Warm Spiced Chestnut Pudding", "line": "A symphony of autumnal flavors, this recipe celebrates the richness and depth of Castanea sativa, also known as Sweet…", "season": "autumn", "type": "drink", "approved_at": "2026-06-14", "url": null, "sci": "Castanea sativa", "en": "Sweet Chestnut", "de": "Edel-Kastanie", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 132, "species_id": 308, "dish": "Alpine Lady's-mantle Tea Infusion", "line": "Savor the crisp, invigorating essence of the Alps in this aromatic tea infusion, featuring the humble yet potent…", "season": "year-round", "type": "drink", "approved_at": "2026-06-14", "url": null, "sci": "Alchemilla alpina", "en": "Alpine Lady's-mantle", "de": "Alpen-Frauenmantel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 133, "species_id": 176, "dish": "Melvin's Alchemilla Mollis Infusion", "line": "Recipe: Melvin's Alchemilla Mollis Infusion", "season": "spring", "type": "drink", "approved_at": "2026-06-14", "url": null, "sci": "Alchemilla mollis", "en": "Lady's-mantle", "de": "Samt-Frauenmantel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 134, "species_id": 567, "dish": "Lady's Mantle & Soured Grain Broth with Burnt Butter, Wild Garlic, and a Rye Crumb", "line": "Here’s the thing about Lady’s Mantle.", "season": "year-round", "type": "main", "approved_at": "2026-06-14", "url": null, "sci": "Alchemilla xanthochlora", "en": "Lady's Mantle", "de": "Gelbgrüner Frauenmantel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 135, "species_id": 564, "dish": "Winter Salad with Trailing Bellflower and Honey Roasted Walnuts", "line": "Embrace the vitality of winter with this nourishing salad that showcases the sweet and delicate flavors of Campanula…", "season": "winter", "type": "side", "approved_at": "2026-06-22", "url": null, "sci": "Campanula poscharskyana", "en": "Trailing bellflower", "de": "Haengepolster-Glockenblume", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 136, "species_id": 515, "dish": "Shepherd's Purse Greens with Sesame & Zanzibari Spices", "line": "A vibrant, peppery green that carries the essence of spring, our humble Shepherd's Purse is transformed into a…", "season": "spring", "type": "side", "approved_at": "2026-06-22", "url": null, "sci": "Capsella bursa-pastoris", "en": "Shepherd's-purse", "de": "Gemeines Hirtentaeschel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 137, "species_id": 361, "dish": "Campanula Rotundifolia Harebell Salad with Smoked Ewe's Milk Cheese and Charred Wild Garlic Dressing", "line": "The delicate harebell leaves mingle with the pungent charred wild garlic, creating a symphony of tastes rooted in our rich culinary heritage.", "season": "year-round", "type": "side", "approved_at": "2026-06-22", "url": null, "sci": "Campanula rotundifolia", "en": "Harebell", "de": "Rundblaettrige Glockenblume", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 138, "species_id": 416, "dish": "Hornbeam Seed & Smoked Butter Panade with Wild Garlic", "line": "Let me be direct with you about hornbeam.", "season": "autumn", "type": "other", "approved_at": "2026-06-22", "url": null, "sci": "Carpinus betulus", "en": "Hornbeam", "de": "Hagebuche", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 140, "species_id": 531, "dish": "Fireweed Spring Shoots with Wilted Dandelion Greens and Charred Serrano Chiles", "line": "Melvin's fireweed recipe celebrates the vibrant essence of early spring, blending the tender shoots of the Rosebay…", "season": "spring", "type": "other", "approved_at": "2026-06-22", "url": null, "sci": "Chamaenerion angustifolium", "en": "Fireweed", "de": "Schmalblättriges Weidenröschen", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 142, "species_id": 374, "dish": "Melvin's Mountain Sow Thistle & Wild Garlic Risotto", "line": "Recipe: Melvin's Mountain Sow Thistle & Wild Garlic Risotto", "season": "year-round", "type": "main", "approved_at": "2026-06-22", "url": null, "sci": "Cicerbita alpina", "en": "Tall blue-lettuce", "de": "Alpen-Milchlattich", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 143, "species_id": 551, "dish": "Melvin's Springy Thistle Broth with Wood Sorrel and Sautéed Dandelion Greens", "line": "A vibrant, verdant broth that celebrates the arrival of spring, this dish highlights the field thistle's (Cirsium…", "season": "spring", "type": "main", "approved_at": "2026-06-22", "url": null, "sci": "Cirsium arvense", "en": "Field thistle", "de": "Acker-Kratzdistel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 144, "species_id": 375, "dish": "Melvin's Celery-Sweet Bull Thistle Stem Stew with Burnt Honey Drizzle", "line": "In the heart of Yorkshire, where the wild land whispers ancient tales, we find the resilient Spear Thistle (Cirsium…", "season": "autumn", "type": "main", "approved_at": "2026-06-22", "url": null, "sci": "Cirsium vulgare", "en": "Bull Thistle", "de": "Gemeine Kratzdistel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 145, "species_id": 562, "dish": "A Winter Salad of Ivy-Leaved Toadflax with Zanzibari Spices", "line": "Embark on an enchanting culinary journey that marries the rugged vitality of the ivy-leaved toadflox (Cymbalaria…", "season": "winter", "type": "side", "approved_at": "2026-06-22", "url": null, "sci": "Cymbalaria muralis", "en": "Ivy-leaved toadflax", "de": "Mauer-Leinkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 146, "species_id": 531, "dish": "Fireweed Shoots with Lemon, Pine, and Soft Cheese", "line": "There’s a brief window in early spring—maybe three weeks, maybe less—when fireweed shoots push through the soil and…", "season": "spring", "type": "other", "approved_at": "2026-06-22", "url": null, "sci": "Chamaenerion angustifolium", "en": "Fireweed", "de": "Schmalblättriges Weidenröschen", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 147, "species_id": 482, "dish": "Marsh Willowherb & Wild Garlic Soup with Fire-Roasted Pine Nuts and Zanzibari Spiced Dukkah", "line": "A harmonious dance of earthy flavors and textures, this soup celebrates the vibrant life force of Epilobium palustre…", "season": "year-round", "type": "main", "approved_at": "2026-06-22", "url": null, "sci": "Epilobium palustre", "en": "Marsh willowherb", "de": "Sumpf-Weidenröschen", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 148, "species_id": 162, "dish": "Sautéed Square-Stemmed Willowherb with Charred Grapes and Zanzibari Spiced Yogurt", "line": "A plant that thrives in the wild, yet carries an exotic allure — such is the square-stemmed willowherb (Epilobium…", "season": "year-round", "type": "side", "approved_at": "2026-06-22", "url": null, "sci": "Epilobium tetragonum", "en": "Square-stemmed willowherb", "de": "Vierkantiges Weidenröschen", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 149, "species_id": 365, "dish": "Meadowsweet Infused Peach Melba with Elderflower Honey Cream", "line": "Welcome to an exquisite symphony of flavors that honors the vibrant life force of Filipendula ulmaria, or Meadowsweet.", "season": "year-round", "type": "other", "approved_at": "2026-06-22", "url": null, "sci": "Filipendula ulmaria", "en": "Meadowsweet", "de": "Echtes Mädesüß", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 150, "species_id": 378, "dish": "Balsam Shoots with Fermented Chilli, Seeds & Soured Cream", "line": "Here’s the thing about Himalayan balsam.", "season": "summer", "type": "other", "approved_at": "2026-06-22", "url": null, "sci": "Impatiens glandulifera", "en": "Indian Balsam", "de": "Druesiges Springkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 151, "species_id": 594, "dish": "Thyme, Lemon, and Honeyed Aubergine Stack with a Wild Garlic and Seta Crumb", "line": "Thyme is one of the few herbs that can lead a dish without shouting.", "season": "year-round", "type": "other", "approved_at": "2026-06-22", "url": null, "sci": "Thymus vulgaris", "en": "Garden thyme", "de": "Echter Thymian", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 152, "species_id": 93, "dish": "Stone Age Nettle Pudding", "line": "Britain's oldest recorded recipe, dated to c. 6000 BC and possibly 8,000 years old.", "season": "spring", "type": "sweet", "approved_at": "2026-06-28", "url": null, "sci": "Urtica dioica", "en": "Stinging nettle", "de": "Grosse Brennessel", "caution": false, "source": "curator", "warnings": []}, {"recipe_id": 153, "species_id": 93, "dish": "Fried Wild Herb, Polenta & Quinoa Fingers with Mountain Cheese", "line": "Toast whole quinoa in a dry pan until nutty and golden, cool, then grind.", "season": "summer", "type": "main", "approved_at": "2026-07-04", "url": null, "sci": "Urtica dioica", "en": "Stinging nettle", "de": "Grosse Brennessel", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": []}, {"recipe_id": 154, "species_id": 701, "dish": "Fried Wild Herb, Polenta & Quinoa Fingers with Mountain Cheese", "line": "Toast whole quinoa in a dry pan until nutty and golden, cool, then grind.", "season": "summer", "type": "main", "approved_at": "2026-07-04", "url": null, "sci": "Atriplex patula", "en": "Common Orache", "de": "", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": []}, {"recipe_id": 155, "species_id": 165, "dish": "Fried Wild Herb, Polenta & Quinoa Fingers with Mountain Cheese", "line": "Toast whole quinoa in a dry pan until nutty and golden, cool, then grind.", "season": "summer", "type": "main", "approved_at": "2026-07-04", "url": null, "sci": "Thymus serpyllum", "en": "Wild thyme", "de": "Frühblühender Thymian", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": [{"kind": "look_alike", "heading": "Look-alikes", "text": "Wild Thyme / Breckland Thyme\nSummary\n\nThe classic creeping wild thyme. Forms mats of woody stems and is often found on dry, open ground.\n\nKey Features\nCreeping stems\nSmall leaves\nOften grey-green\nUsually lower and looser than T. praecox\nVariable species\nGrowth Form\n===========\n===========\n===========\n   |  |  |\nHabitat\nSandy soils\nDry banks\nOpen tracksides\nHeath-like ground\nThin grassland\nFlavour\nMild thyme\nEarthy\nOften slightly lemony\nLess peppery than T. pulegioides\nWatch For\n\nCan be difficult to separate from T. praecox. Many records are uncertain or intermediate.", "reviewed": true}]}, {"recipe_id": 156, "species_id": 142, "dish": "Fried Wild Herb, Polenta & Quinoa Fingers with Mountain Cheese", "line": "Toast whole quinoa in a dry pan until nutty and golden, cool, then grind.", "season": "summer", "type": "main", "approved_at": "2026-07-04", "url": null, "sci": "Thymus polytrichus", "en": "English Wild Thyme", "de": "", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": []}, {"recipe_id": 157, "species_id": 281, "dish": "Wild Salsa Verde", "line": "Garlic + salt pounded to a paste (optional: anchovies pounded in at this stage).", "season": "summer", "type": "condiment", "approved_at": "2026-07-04", "url": null, "sci": "Oxalis acetosella", "en": "European wood-sorrel", "de": "Gemeiner Sauerklee", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": []}, {"recipe_id": 158, "species_id": 165, "dish": "Wild Salsa Verde", "line": "Garlic + salt pounded to a paste (optional: anchovies pounded in at this stage).", "season": "summer", "type": "condiment", "approved_at": "2026-07-04", "url": null, "sci": "Thymus serpyllum", "en": "Wild thyme", "de": "Frühblühender Thymian", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": [{"kind": "look_alike", "heading": "Look-alikes", "text": "Wild Thyme / Breckland Thyme\nSummary\n\nThe classic creeping wild thyme. Forms mats of woody stems and is often found on dry, open ground.\n\nKey Features\nCreeping stems\nSmall leaves\nOften grey-green\nUsually lower and looser than T. praecox\nVariable species\nGrowth Form\n===========\n===========\n===========\n   |  |  |\nHabitat\nSandy soils\nDry banks\nOpen tracksides\nHeath-like ground\nThin grassland\nFlavour\nMild thyme\nEarthy\nOften slightly lemony\nLess peppery than T. pulegioides\nWatch For\n\nCan be difficult to separate from T. praecox. Many records are uncertain or intermediate.", "reviewed": true}]}, {"recipe_id": 159, "species_id": 142, "dish": "Wild Salsa Verde", "line": "Garlic + salt pounded to a paste (optional: anchovies pounded in at this stage).", "season": "summer", "type": "condiment", "approved_at": "2026-07-04", "url": null, "sci": "Thymus polytrichus", "en": "English Wild Thyme", "de": "", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": []}, {"recipe_id": 161, "species_id": 199, "dish": "Wild-Green Sauerkraut", "line": "House-fermented kraut with foraged wild greens folded through.", "season": "summer", "type": "ferment", "approved_at": "2026-07-04", "url": null, "sci": "Sanguisorba minor", "en": "Salad Burnet", "de": "Kleiner Wiesenknopf", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": []}, {"recipe_id": 162, "species_id": 164, "dish": "Wild-Green Sauerkraut", "line": "House-fermented kraut with foraged wild greens folded through.", "season": "summer", "type": "ferment", "approved_at": "2026-07-04", "url": null, "sci": "Silene vulgaris", "en": "Bladder campion", "de": "Gemeines Leimkraut", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": []}, {"recipe_id": 163, "species_id": 286, "dish": "Wild-Green Sauerkraut", "line": "House-fermented kraut with foraged wild greens folded through.", "season": "summer", "type": "ferment", "approved_at": "2026-07-04", "url": null, "sci": "Taraxacum officinale", "en": "Dandelion", "de": "Bettsaier", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": []}, {"recipe_id": 164, "species_id": 165, "dish": "Thyme Hummus", "line": "House hummus with wild thyme stirred through.", "season": "summer", "type": "condiment", "approved_at": "2026-07-04", "url": null, "sci": "Thymus serpyllum", "en": "Wild thyme", "de": "Frühblühender Thymian", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": [{"kind": "look_alike", "heading": "Look-alikes", "text": "Wild Thyme / Breckland Thyme\nSummary\n\nThe classic creeping wild thyme. Forms mats of woody stems and is often found on dry, open ground.\n\nKey Features\nCreeping stems\nSmall leaves\nOften grey-green\nUsually lower and looser than T. praecox\nVariable species\nGrowth Form\n===========\n===========\n===========\n   |  |  |\nHabitat\nSandy soils\nDry banks\nOpen tracksides\nHeath-like ground\nThin grassland\nFlavour\nMild thyme\nEarthy\nOften slightly lemony\nLess peppery than T. pulegioides\nWatch For\n\nCan be difficult to separate from T. praecox. Many records are uncertain or intermediate.", "reviewed": true}]}, {"recipe_id": 165, "species_id": 142, "dish": "Thyme Hummus", "line": "House hummus with wild thyme stirred through.", "season": "summer", "type": "condiment", "approved_at": "2026-07-04", "url": null, "sci": "Thymus polytrichus", "en": "English Wild Thyme", "de": "", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": []}, {"recipe_id": 166, "species_id": 165, "dish": "Wild Thyme Roasted Carrots", "line": "Carrots roasted, tossed hot in wild thyme butter, rested overnight so the flavour intermingles before reheating.", "season": "summer", "type": "side", "approved_at": "2026-07-04", "url": null, "sci": "Thymus serpyllum", "en": "Wild thyme", "de": "Frühblühender Thymian", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": [{"kind": "look_alike", "heading": "Look-alikes", "text": "Wild Thyme / Breckland Thyme\nSummary\n\nThe classic creeping wild thyme. Forms mats of woody stems and is often found on dry, open ground.\n\nKey Features\nCreeping stems\nSmall leaves\nOften grey-green\nUsually lower and looser than T. praecox\nVariable species\nGrowth Form\n===========\n===========\n===========\n   |  |  |\nHabitat\nSandy soils\nDry banks\nOpen tracksides\nHeath-like ground\nThin grassland\nFlavour\nMild thyme\nEarthy\nOften slightly lemony\nLess peppery than T. pulegioides\nWatch For\n\nCan be difficult to separate from T. praecox. Many records are uncertain or intermediate.", "reviewed": true}]}, {"recipe_id": 167, "species_id": 142, "dish": "Wild Thyme Roasted Carrots", "line": "Carrots roasted, tossed hot in wild thyme butter, rested overnight so the flavour intermingles before reheating.", "season": "summer", "type": "side", "approved_at": "2026-07-04", "url": null, "sci": "Thymus polytrichus", "en": "English Wild Thyme", "de": "", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": []}, {"recipe_id": 169, "species_id": 165, "dish": "Falafel & Halloumi Pitta", "line": "Full open pitta, wild-green sauerkraut, spignel pesto, thyme hummus.", "season": "summer", "type": "other", "approved_at": "2026-07-04", "url": null, "sci": "Thymus serpyllum", "en": "Wild thyme", "de": "Frühblühender Thymian", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": [{"kind": "look_alike", "heading": "Look-alikes", "text": "Wild Thyme / Breckland Thyme\nSummary\n\nThe classic creeping wild thyme. Forms mats of woody stems and is often found on dry, open ground.\n\nKey Features\nCreeping stems\nSmall leaves\nOften grey-green\nUsually lower and looser than T. praecox\nVariable species\nGrowth Form\n===========\n===========\n===========\n   |  |  |\nHabitat\nSandy soils\nDry banks\nOpen tracksides\nHeath-like ground\nThin grassland\nFlavour\nMild thyme\nEarthy\nOften slightly lemony\nLess peppery than T. pulegioides\nWatch For\n\nCan be difficult to separate from T. praecox. Many records are uncertain or intermediate.", "reviewed": true}]}, {"recipe_id": 170, "species_id": 142, "dish": "Falafel & Halloumi Pitta", "line": "Full open pitta, wild-green sauerkraut, spignel pesto, thyme hummus.", "season": "summer", "type": "other", "approved_at": "2026-07-04", "url": null, "sci": "Thymus polytrichus", "en": "English Wild Thyme", "de": "", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": []}, {"recipe_id": 172, "species_id": 165, "dish": "Preserved Lemon Andalouse", "line": "Mayo, roasted pepper, tomato, thyme-preserved lemon.", "season": "summer", "type": "other", "approved_at": "2026-07-04", "url": null, "sci": "Thymus serpyllum", "en": "Wild thyme", "de": "Frühblühender Thymian", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": [{"kind": "look_alike", "heading": "Look-alikes", "text": "Wild Thyme / Breckland Thyme\nSummary\n\nThe classic creeping wild thyme. Forms mats of woody stems and is often found on dry, open ground.\n\nKey Features\nCreeping stems\nSmall leaves\nOften grey-green\nUsually lower and looser than T. praecox\nVariable species\nGrowth Form\n===========\n===========\n===========\n   |  |  |\nHabitat\nSandy soils\nDry banks\nOpen tracksides\nHeath-like ground\nThin grassland\nFlavour\nMild thyme\nEarthy\nOften slightly lemony\nLess peppery than T. pulegioides\nWatch For\n\nCan be difficult to separate from T. praecox. Many records are uncertain or intermediate.", "reviewed": true}]}, {"recipe_id": 173, "species_id": 142, "dish": "Preserved Lemon Andalouse", "line": "Mayo, roasted pepper, tomato, thyme-preserved lemon.", "season": "summer", "type": "other", "approved_at": "2026-07-04", "url": null, "sci": "Thymus polytrichus", "en": "English Wild Thyme", "de": "", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": []}, {"recipe_id": 174, "species_id": 165, "dish": "Wild Thyme Harissa Samurai", "line": "Mayo, roasted chilli, caraway, Black Forest thyme.", "season": "summer", "type": "other", "approved_at": "2026-07-04", "url": null, "sci": "Thymus serpyllum", "en": "Wild thyme", "de": "Frühblühender Thymian", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": [{"kind": "look_alike", "heading": "Look-alikes", "text": "Wild Thyme / Breckland Thyme\nSummary\n\nThe classic creeping wild thyme. Forms mats of woody stems and is often found on dry, open ground.\n\nKey Features\nCreeping stems\nSmall leaves\nOften grey-green\nUsually lower and looser than T. praecox\nVariable species\nGrowth Form\n===========\n===========\n===========\n   |  |  |\nHabitat\nSandy soils\nDry banks\nOpen tracksides\nHeath-like ground\nThin grassland\nFlavour\nMild thyme\nEarthy\nOften slightly lemony\nLess peppery than T. pulegioides\nWatch For\n\nCan be difficult to separate from T. praecox. Many records are uncertain or intermediate.", "reviewed": true}]}, {"recipe_id": 175, "species_id": 142, "dish": "Wild Thyme Harissa Samurai", "line": "Mayo, roasted chilli, caraway, Black Forest thyme.", "season": "summer", "type": "other", "approved_at": "2026-07-04", "url": null, "sci": "Thymus polytrichus", "en": "English Wild Thyme", "de": "", "caution": false, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": []}, {"recipe_id": 176, "species_id": 107, "dish": "Elderflower Brasil", "line": "Mayo, tomato, Feldberg elderflower, apple vinegar.", "season": "summer", "type": "other", "approved_at": "2026-07-04", "url": null, "sci": "Sambucus nigra", "en": "Elderberry", "de": "Schwarzer Holunder", "caution": true, "source": "Friture Sauvage menu, Hofgut LEO, 5 July 2026", "warnings": [{"kind": "preparation", "heading": "Caution", "text": "Edible with caution — flowers and cooked berries only. Raw berries, leaves, stems and bark are toxic; always cook the berries before eating.", "reviewed": true}]}, {"recipe_id": 177, "species_id": 527, "dish": "Horsetail & Wild Garlic Broth with Slow-Cooked Eggs", "line": "Early spring is a strange, hungry time in the kitchen.", "season": "spring", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Equisetum arvense", "en": "Field horsetail", "de": "Acker-Schachtelhalm", "caution": true, "source": "ai_generated", "warnings": [{"kind": "look_alike", "heading": "Look-alikes", "text": "Marsh horsetail (toxic) looks similar.", "reviewed": true}, {"kind": "preparation", "heading": "Caution", "text": "Only young spring shoots, cooked, in moderation.", "reviewed": true}]}, {"recipe_id": 178, "species_id": 208, "dish": "Knautia arvensis in a Wild Summer Broth with Smoked Paprika & Late Honey", "line": "I’m not going to pretend this is a plant you’d ever find in a supermarket, nor that there’s a long tradition of eating…", "season": "summer", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Knautia arvensis", "en": "Bluebuttons", "de": "Acker-Witwenblume", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 179, "species_id": 216, "dish": "Ox-Eye Daisy Buds in Brown Butter, with Fermented Honey and Sea Aster", "line": "Leucanthemum ircutianum – ox-eye daisy – has a bite that people don’t expect.", "season": "year-round", "type": "condiment", "approved_at": "2026-10-22", "url": null, "sci": "Leucanthemum ircutianum", "en": "Daisy", "de": "Wiesen-Margerite", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 180, "species_id": 393, "dish": "Sorrel Clover & Burnt Honey Butter on Charred Sourdough", "line": "There's a kind of generosity to Oxalis tetraphylla — the way it pushes up through the soil with those four leaves like…", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Oxalis tetraphylla", "en": "Lucky-clover", "de": "Glücksklee", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 181, "species_id": 438, "dish": "Black Pine Charcoal, Honey & Labneh on Burnt Flatbread", "line": "I’ve been cooking with pine for years, and most people think it’s just about the needles or the pine nuts you buy in a…", "season": "year-round", "type": "side", "approved_at": "2026-10-22", "url": null, "sci": "Pinus nigra", "en": "Black pine", "de": "Schwarz-Foehre", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 182, "species_id": 212, "dish": "Sour Cherry, Molasses, and Allspice Glaze — Braised Cabbage", "line": "Sour cherries bring a sharpness that cuts through the richness of slow-cooked cabbage like nothing else.", "season": "year-round", "type": "condiment", "approved_at": "2026-10-22", "url": null, "sci": "Prunus cerasus", "en": "Sour cherry", "de": "Sauerkirsche", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 183, "species_id": 437, "dish": "For the bird cherry molasses", "line": "Stone Fruit, Smoke, and Time: Bird Cherry Molasses with Wild Garlic and Celeriac", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Prunus padus", "en": "Bird cherry", "de": "Ahlkirsche", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 184, "species_id": 488, "dish": "Douglas-Fir Needle Salt-Baked Celeriac with Fermented Fir Cream", "line": "There aren't many trees that carry a flavour this precise.", "season": "winter", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Pseudotsuga menziesii", "en": "Douglas-fir", "de": "Douglasfichte", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 185, "species_id": 433, "dish": "Wild Pear, Blette, and Honey — A Slow Cure for Winter", "line": "You’ll often hear people say a wild pear is useless unless you cook it.", "season": "autumn", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Pyrus communis", "en": "Pear", "de": "Wildbirne", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 186, "species_id": 419, "dish": "Knotweed & Rhubarb Fool with Wild Mint & Sorrel", "line": "This is one of those recipes that makes me smile every spring.", "season": "spring", "type": "sweet", "approved_at": "2026-10-22", "url": null, "sci": "Reynoutria japonica", "en": "Mexican-bamboo", "de": "Japanischer Staudenknöterich", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 187, "species_id": 391, "dish": "Blackcurrant Leaf and Preserved Fruit Tart", "line": "Blackcurrant gives you two gifts if you know where to look: the fruit, sure — that dark, tannic, almost savage…", "season": "summer", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Ribes nigrum", "en": "Blackcurrant", "de": "Schwarze Johannisbeere", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 188, "species_id": 396, "dish": "Rosa micrantha Hip & Hawthorn Berry Compote with Whipped Sheep's Curd", "line": "This is a wild fruit that asks you to slow down.", "season": "autumn", "type": "preserve", "approved_at": "2026-10-22", "url": null, "sci": "Rosa micrantha", "en": "Smallflower sweetbrier", "de": "Kleinblütige Rose", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 189, "species_id": 536, "dish": "Rosa Multiflora: The Rambler's Harvest", "line": "You want to know why I bother with Rosa multiflora when there's a perfectly good dog rose down the lane?", "season": "spring", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Rosa multiflora", "en": "Rambler rose", "de": "Vielbluetige Rose", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 190, "species_id": 293, "dish": "Blackberry: The Bramble’s Last Stand", "line": "There’s a moment in late summer when the blackberry shifts from sharp and seedy to something almost velvet—deep…", "season": "summer", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Rubus fruticosus", "en": "Shrubby blackberry", "de": "Falten-Brombeere", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 191, "species_id": 305, "dish": "Dock Leaf and Butter Bean Broth with Fermented Lemon", "line": "Broad-leaved dock is one of those plants that people forget is edible because they're too busy cursing it in their…", "season": "spring", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Rumex obtusifolius", "en": "Broad-leaved dock", "de": "Stumpfblättriger Ampfer", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 192, "species_id": 301, "dish": "White Campion Purée with Brown Butter & Wild Garlic", "line": "Silene latifolia — white campion, the quiet one in the hedgerow that people walk past without a second glance.", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Silene latifolia", "en": "White campion", "de": "Breitblättrige Lichtnelke", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 193, "species_id": 350, "dish": "Sowthistle, Lemon, and Burnt Butter on Toast", "line": "This is one of those plants that people walk past every day, dismissing it as a weed, when what they're actually…", "season": "spring", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Sonchus oleraceus", "en": "Common sowthistle", "de": "Gemeine Gänsedistel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 194, "species_id": 296, "dish": "Hedge Woundwort & Smoked Potato Cakes with Wild Garlic Yoghurt", "line": "I know what you're thinking: Stachys sylvatica?", "season": "spring", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Stachys sylvatica", "en": "Hedge woundwort", "de": "Wald-Ziest", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 195, "species_id": 395, "dish": "Feverfew & Buttermilk Barley with Fermented Chard & Walnut Crumble", "line": "I've cooked with feverfew long enough to know most people get it wrong.", "season": "year-round", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Tanacetum parthenium", "en": "Feverfew", "de": "Falsche Kamille", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 196, "species_id": 513, "dish": "Wild Penny-Cress & Burnt Butter on Toast", "line": "Thlaspi arvense gets called a weed, but it's carrying something honest — a sharp, mustardy heat with an undernote of…", "season": "autumn", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Thlaspi arvense", "en": "Field penny-cress", "de": "Acker-Hellerkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 197, "species_id": 532, "dish": "Lime Leaf Wraps with Early Summer Fillings", "line": "Tilia cordata leaves are one of those quiet treasures that sit right in front of you.", "season": "summer", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Tilia cordata", "en": "Small-leaved Lime", "de": "Winter-Linde", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 198, "species_id": 487, "dish": "Clover & Burdock Leaf Tart", "line": "with Strained Yoghurt & Pickled Clover Blossoms", "season": "year-round", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Trifolium repens", "en": "White Clover", "de": "Kriech-Klee", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 199, "species_id": 262, "dish": "Tower Mustard with Smoked Butter, Preserved Lemon, and Wild Seeds", "line": "You’re probably not used to seeing Turritis glabra on a menu.", "season": "year-round", "type": "condiment", "approved_at": "2026-10-22", "url": null, "sci": "Turritis glabra", "en": "Tower Mustard", "de": "Turmkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 200, "species_id": 369, "dish": "Fried Mullein Flower Fritters with Wild Garlic", "line": "There are plants you eat for bulk, and plants you eat for presence.", "season": "year-round", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Verbascum densiflorum", "en": "Mullein", "de": "Dichtblütige Königskerze", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 201, "species_id": 384, "dish": "Veronica, Butter Bean & Burnt Lemon Broth", "line": "This is a recipe that came to me walking the Longshaw Estate in early autumn, when the heath speedwell was still…", "season": "autumn", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Veronica officinalis", "en": "Speedwell", "de": "Echter Ehrenpreis", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 202, "species_id": 372, "dish": "Sour Milk, Burnt Butter, and Tufted Vetch", "line": "This is a plant that most people walk past, dismiss as a weed, or worse — spray.", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Vicia cracca", "en": "Cow Vetch", "de": "Gewöhnliche Vogel-Wicke", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 203, "species_id": 587, "dish": "Crab Apple and Rose Geranium Jelly with Sea Aster Salt", "line": "I've got a deep respect for the crab apple.", "season": "autumn", "type": "preserve", "approved_at": "2026-10-22", "url": null, "sci": "Malus sylvestris", "en": "Crab apple", "de": "Holz-Apfel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 204, "species_id": 591, "dish": "Yellow Loosestrife & Caramelised Onion Tart with Wild Herb Pastry", "line": "There's a particular quietness to cooking with plants that most people walk past.", "season": "year-round", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Lysimachia vulgaris", "en": "Loosestrife", "de": "Gemeiner Gilbweiderich", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 205, "species_id": 342, "dish": "Erigeron in the Pot: Horseweed & Lentil Broth", "line": "Most foragers walk past horseweed, and for good reason.", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Erigeron canadensis", "en": "Horseweed", "de": "Kanadisches Berufkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 206, "species_id": 228, "dish": "Chamomile & Burnt Honey Custard with Wild Fennel Pollen", "line": "Let me be straight with you before we start — Matricaria chamomilla is a gentle plant, but it demands respect.", "season": "summer", "type": "sweet", "approved_at": "2026-10-22", "url": null, "sci": "Matricaria chamomilla", "en": "Mayweed", "de": "Echte Kamille", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 207, "species_id": 371, "dish": "Self-Heal and Sweet Potato Cakes, with a Chickpea and Sorrel Broth", "line": "Lawns, path edges, the margins of gardens where the mower doesn’t quite reach.", "season": "spring", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Prunella vulgaris", "en": "Heal-all", "de": "Gemeine Braunelle", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 209, "species_id": 682, "dish": "Yellow Archangel, Butterbean & Saffron Broth", "line": "I’ve always liked the way yellow archangel shows up — quietly, in the margins, with those sharp-toothed leaves and…", "season": "year-round", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Lamium galeobdolon", "en": "Yellow archangel", "de": "", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 210, "species_id": 618, "dish": "Coffee and Cloves from the Wet Ground", "line": "Water avens root is a strange and lovely thing.", "season": "year-round", "type": "drink", "approved_at": "2026-10-22", "url": null, "sci": "Geum rivale", "en": "Water Avens", "de": "Bach-Nelkenwurz", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 212, "species_id": 596, "dish": "Wild Balsam Shoots with Roasted Seed Dressing", "line": "This is a dish about patience and precision.", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Impatiens noli-tangere", "en": "Jewelweed", "de": "Echtes Springkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 217, "species_id": 366, "dish": "Spruce-Tip & Caramelised Onion Tart", "line": "This is a dish that started in a forager’s idea and ended up on a friend’s plate, and that’s always how the best…", "season": "spring", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Picea abies", "en": "Norway Spruce", "de": "Fichte", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 219, "species_id": 666, "dish": "Mountain Dock with Slow-Cooked Butter Beans, Coriander Seed, and Sorghum", "line": "They can be added to salads or cooked as a potherb.", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Rumex arifolius", "en": "Mountain Dock", "de": "", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 221, "species_id": 634, "dish": "Ingredients", "line": "Young leaves are cooked and used as a vegetable.", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Cirsium oleraceum", "en": "Water Thistle", "de": "Kohl-Kratzdistel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 222, "species_id": 336, "dish": "Hedgehog Mushroom, Salt Baked Celeriac & Wormwood Butter", "line": "There's a quiet certainty to the hedgehog mushroom that I've always admired.", "season": "winter", "type": "condiment", "approved_at": "2026-10-22", "url": null, "sci": "Hydnum repandum", "en": "Wood Hedgehog", "de": "Semmel-Stoppelpilz", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 223, "species_id": 223, "dish": "Giant Polypore, Slow-Cooked with Butter Beans, Shallot, and Sage", "line": "Here’s the thing about Meripilus giganteus — it’s a generous mushroom, but it demands something from you in return.", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Meripilus giganteus", "en": "Giant Polypore", "de": "Riesen-Porling", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 224, "species_id": 323, "dish": "Porcelain Mushroom, Leek & Soured Cream Tart", "line": "This is a mushroom that arrives like fine china — delicate, almost translucent, with a cap that gleams like wet…", "season": "year-round", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Oudemansiella mucida", "en": "Porcelain mushroom", "de": "Beringter Schleimrübling", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 225, "species_id": 160, "dish": "Roasted Cep on Sourdough with Wild Garlic Butter and a Slow-Cooked Egg", "line": "Here’s the truth about ceps.", "season": "year-round", "type": "side", "approved_at": "2026-10-22", "url": null, "sci": "Boletus edulis", "en": "Cep", "de": "Birkensteinpilz", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 226, "species_id": 497, "dish": "Brown Birch Bolete & Potato Hotpot with Soured Cream & Dill", "line": "Leccinum scabrum is a mushroom that asks something of you.", "season": "autumn", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Leccinum scabrum", "en": "Brown Birch-bolete", "de": "Birken-Röhrling", "caution": true, "source": "ai_generated", "warnings": [{"kind": "preparation", "heading": "Caution", "text": "Cook thoroughly — can upset the stomach raw or undercooked.", "reviewed": true}]}, {"recipe_id": 228, "species_id": 157, "dish": "Beefsteak Polypore, Pickled Walnut & Burnt Butter on Sourdough", "line": "This one's a conversation starter.", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Fistulina hepatica", "en": "Beefsteak Polypore", "de": "Leberreischling", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 229, "species_id": 489, "dish": "Orange Birch Bolete, Sage Butter & Soft Polenta", "line": "There's a moment with an orange birch bolete that tells you everything you need to know — when you cut into it and…", "season": "year-round", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Leccinum versipelle", "en": "Orange Birch Bolete", "de": "Birken-Rotkappe", "caution": true, "source": "ai_generated", "warnings": [{"kind": "preparation", "heading": "Caution", "text": "Cook thoroughly — can upset the stomach raw or undercooked.", "reviewed": true}]}, {"recipe_id": 230, "species_id": 324, "dish": "Red Cracking Bolete, Marinated and Grilled on Sourdough with Wild Garlic Butter", "line": "This mushroom is underestimated.", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Xerocomellus chrysenteron", "en": "Red-cracking Bolete", "de": "Echter Rotfußröhrling", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 231, "species_id": 457, "dish": "Turkey Tail and Sunchoke Brodo with Fermented Chilli, Sage, and Hazelnut Oil", "line": "Turkey tail is one of those ingredients that asks you to stop and listen.", "season": "autumn", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Trametes versicolor", "en": "Turkey-tail", "de": "", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 233, "species_id": 506, "dish": "Summer Bolete, Spelt, and Slow-Roasted Tomato", "line": "There's a moment in late July when the ground under the oaks cracks open and the first summer boletes push through.", "season": "summer", "type": "side", "approved_at": "2026-10-22", "url": null, "sci": "Boletus reticulatus", "en": "Summer Bolete", "de": "Eichensteinpilz", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 234, "species_id": 424, "dish": "Malva & Preserved Lemon Flatbreads", "line": "Here’s the thing about mallow.", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Malva trimestris", "en": "Rose Mallow", "de": "Sommer-Strauchpappel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 235, "species_id": 476, "dish": "Armenian Blackberry & Burnt Honey Flummery", "line": "The Armenian blackberry, Rubus armeniacus, is often dismissed as a thorny thug, but its fruit is a marvel — deeply…", "season": "summer", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Rubus armeniacus", "en": "Armenian Blackberry", "de": "Armenische Brombeere", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 236, "species_id": 168, "dish": "Hedgerow Cranesbill, Feta, and New Potato Tart", "line": "The leaves are used in pastries and salads.", "season": "spring", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Geranium pyrenaicum", "en": "Hedgerow Geranium", "de": "Pyrenäen-Storchschnabel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 237, "species_id": 217, "dish": "Ragged Robin on Toast", "line": "This may be the first time you’ve considered Silene pendula as something to eat.", "season": "spring", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Silene pendula", "en": "Nodding catchfly", "de": "Hängendes Leimkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 238, "species_id": 172, "dish": "Charred Peppermint, White Bean & Pomegranate Bowl", "line": "Peppermint is often treated like a breath mint or a tea bag—shy, polite, a background player.", "season": "summer", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Mentha × piperita", "en": "Peppermint", "de": "Pfeffer-Minze", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 239, "species_id": 173, "dish": "Horehound & Bitter Greens Broth with Roasted Roots and a Splash of Something Fortified", "line": "This is not a sweet herb.", "season": "winter", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Marrubium vulgare", "en": "Horehound", "de": "Andorn", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 240, "species_id": 226, "dish": "Zigzag Clover & Fermented Barley Salad with Wild Garlic Labneh", "line": "Most people walk straight past it, thinking it's just red clover with a bit of character.", "season": "autumn", "type": "side", "approved_at": "2026-10-22", "url": null, "sci": "Trifolium medium", "en": "Red Clover", "de": "Mittlerer Klee", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 241, "species_id": 177, "dish": "Lime Blossom, Honey & Thyme Semi-Freddo with Burnt Lime Leaf Sugar", "line": "This is a dessert that takes Tilia seriously.", "season": "summer", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Tilia × europaea", "en": "Common Lime", "de": "Holländische Linde", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 242, "species_id": 184, "dish": "Brooklime, New Potato & Wild Garlic Butter", "line": "Brooklime is a blast of watercress heat wrapped in succulence.", "season": "year-round", "type": "condiment", "approved_at": "2026-10-22", "url": null, "sci": "Veronica beccabunga", "en": "Brooklime", "de": "Bach-Ehrenpreis", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 243, "species_id": 183, "dish": "Creamy Hedge Bedstraw Soup", "line": "Foraged from the right hedgerow, white bedstraw gives you this quiet, nutty flavour — not aggressive, not shy, but…", "season": "year-round", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Galium album", "en": "Hedge Bedstraw", "de": "Weißes Labkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 244, "species_id": 349, "dish": "Hylotelephium telephium, Pickled Stem, Shaved Apple & Walnut Oil", "line": "This is a plant that carries its own water, its own memory of drought and stone.", "season": "autumn", "type": "condiment", "approved_at": "2026-10-22", "url": null, "sci": "Hylotelephium telephium", "en": "Orpine", "de": "Große Fetthenne", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 245, "species_id": 233, "dish": "Braised Cat’s Ear with Saffron, Preserved Lemon, and a Slow Egg", "line": "There’s a moment in late spring when the lawns get shaggy and the cat’s ear comes into its own.", "season": "spring", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Hypochaeris radicata", "en": "Hairy cat's ear", "de": "Gewöhnliches Ferkelkraut", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 246, "species_id": 190, "dish": "Hairy Lady's Mantle Leaf Wraps with Fermented Grain & Smoked Allium", "line": "A note before we start: Alchemilla monticola — Hairy Lady's Mantle — is conditionally edible, which is a way of saying…", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Alchemilla monticola", "en": "Hairy lady's mantle", "de": "Bergwiesen-Frauenmantel", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 247, "species_id": 353, "dish": "Goldenrod & Green Garlic Broth with Crisped Buckwheat & Soft Herbs", "line": "This is a spring dish that leans into goldenrod’s quiet, grassy bitterness — not a punch, but a gentle grip that wakes…", "season": "spring", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Solidago canadensis", "en": "Canada goldenrod", "de": "Kanadische Goldrute", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 249, "species_id": 405, "dish": "Parasol Mushrooms, Charred Over Fire, with Garlic, Thyme and Sherry", "line": "The parasol earns its place on the table through texture as much as flavour — that firm, almost meaty flesh that holds…", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Macrolepiota procera", "en": "Parasol", "de": "Gemeiner Riesenschirmling", "caution": true, "source": "ai_generated", "warnings": [{"kind": "look_alike", "heading": "Look-alikes", "text": "Deadly small Lepiotas look similar — pick only large ones with a movable double ring and a snakeskin-patterned stem; if in doubt, leave it.", "reviewed": true}]}, {"recipe_id": 254, "species_id": 134, "dish": "Knotgrass, Barley and Wild Garlic Broth with Toasted Buckwheat", "line": "Although no specific mention has been made for this species, there have been reports that some members of this genus…", "season": "year-round", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Polygonum aviculare", "en": "Knotgrass", "de": "Vogel-Knöterich", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 255, "species_id": 15, "dish": "Three-Nerved Sandwort with Brown Butter, Wild Garlic and Toasted Barley", "line": "Three-nerved sandwort is one of those quiet woodland plants that rewards the forager who crouches low — a soft…", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Moehringia trinervia", "en": "Apetalous sandwort", "de": "Dreinervige Nabelmiere", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 256, "species_id": 59, "dish": "Pale Starwort, Wilted in Brown Butter with Toasted Seed Crumb", "line": "The leaves contain saponins[7, 65].", "season": "spring", "type": "condiment", "approved_at": "2026-10-22", "url": null, "sci": "Stellaria apetala", "en": "Spade Vine", "de": "Bleiche Sternmiere", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 259, "species_id": 63, "dish": "Mâche with Roasted Jerusalem Artichokes, Toasted Hazelnuts and Honey-Vinegar Dressing", "line": "Lamb's lettuce is one of the few salad leaves that tastes of something worth eating on its own — a soft, almost…", "season": "year-round", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Valeriana locusta", "en": "Lamb's lettuce", "de": "Geißblattgewächse", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 262, "species_id": 73, "dish": "Clustered Dock, Potato and Buttermilk Broth", "line": "Clustered dock is the sharpest-tasting of the common docks — that clean, lemony bite of oxalic acid, more assertive…", "season": "spring", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Rumex conglomeratus", "en": "Green dock", "de": "Knäuel-Ampfer", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 263, "species_id": 90, "dish": "Red Campion Flower & Young Shoot Fritters with Wild Garlic Yoghurt", "line": "Red campion is a hedgerow plant people walk past for fifty weeks of the year and then stop for two.", "season": "spring", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Silene dioica", "en": "Red Campion", "de": "Rote Lichtnelke", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 265, "species_id": 520, "dish": "Sorrel, Butter and New Potato — A Spring Braise with Poached Egg", "line": "Safety note — please read first: Plants can contain quite high levels of oxalic acid, which is what gives the leaves of many members of this genus an acid-lemon flavour.", "season": "spring", "type": "other", "approved_at": "2026-10-22", "url": null, "sci": "Rumex acetosa", "en": "Common Sorrel", "de": "Wiesen-Sauer-Ampfer", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 269, "species_id": 604, "dish": "Woolly Blackberry and Bay Leaf Curd Tart", "line": "Rubus canescens is the bramble I look for on dry, sun-baked edges — chalk downland, hedgerow margins, the scrubby…", "season": "summer", "type": "main", "approved_at": "2026-10-22", "url": null, "sci": "Rubus canescens", "en": "Brambles", "de": "Filz-Brombeere", "caution": false, "source": "ai_generated", "warnings": []}, {"recipe_id": 271, "species_id": 759, "dish": "Yellow Wood Sorrel, Grilled Apricot and Toasted Barley Salad", "line": "Safety note — please read first: The leaves contain oxalic acid, which gives them their sharp flavour.", "season": "year-round", "type": "side", "approved_at": "2026-10-22", "url": null, "sci": "Oxalis stricta", "en": "Yellow wood sorrel", "de": "Steifer Sauerklee", "caution": false, "source": "ai_generated", "warnings": []}], "disclaimer": {"heading": "A note on safety and sources", "paras": ["Edibility and medicinal information on this page is for educational reference only. Always verify identification with multiple authoritative sources before consuming any wild plant or fungi. Never rely on any single source, including this page, as your sole basis for a consumption decision. Identification and content may be AI-assisted. Human-created and/or reviewed content is indicated where shown. This page is an educational resource, not a safety-certified identification system."]}};
+</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+<script>
+(function () {
+  "use strict";
+  var D = window.DATA;
+  var byId = {};
+  D.species.forEach(function (s) { byId[s.id] = s; });
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function badge(s) { return '<span class="badge ' + esc(s.badge.kind) + '">' + esc(s.badge.text) + "</span>"; }
+  // Cautionary text that travels with a recipe (Fix B, 22 Oct 2026; export.py
+  // recipe "warnings" = culinary_warnings: look-alike + preparation, curator
+  // text, uncut). Used where no species warning block sits beside the recipe.
+  function recipeWarn(r) {
+    return (r && r.warnings || []).map(function (w) {
+      return '<div class="warn ' + (w.kind === "look_alike" ? "lookalike" : "caution") + ' culinary-warning"><strong>⚠ ' +
+        esc(w.heading) + "</strong>" + esc(w.text) + "</div>";
+    }).join("");
+  }
+  function img(src, alt) {
+    return src ? '<img src="' + esc(src) + '" alt="' + esc(alt) + '" loading="lazy">' : '<div class="noimg"></div>';
+  }
+  // Same order as the app's walk panel: scientific name, common name, then the badge.
+  function stopSpecies(s) {
+    var common = [s.en, s.de].filter(Boolean).join(" · ");
+    return '<div class="walk-stop-sp">' + img(s.thumb, s.en || s.sci) + "<div>" +
+      '<span class="walk-stop-species">' + esc(s.sci) + "</span>" +
+      (common ? '<div class="walk-stop-common">' + esc(common) + "</div>" : "") +
+      '<div class="walk-stop-meta">' + badge(s) + "</div></div></div>";
+  }
+  // Species already shown at an earlier stop: one compact line, safety badge
+  // kept (rp.badge is set by gates.repeat_line_badge), no photo or recipe.
+  // Names rule (as the app's static/js/species-names.js): "Common (Latin)",
+  // Latin in italics; Latin alone only when there is no common name.
+  function spName(s) {
+    var latin = '<span class="walk-stop-species">' + esc(s.sci) + "</span>";
+    return s.en ? esc(s.en) + " (" + latin + ")" : latin;
+  }
+  function alsoHere(s, rp) {
+    return '<div class="walk-stop-also">Also here: ' + (rp.badge ? badge({ badge: rp.badge }) + " " : "") +
+      spName(s) + " — see stop " + esc(rp.first) + "</div>";
+  }
+  function stopBody(st) {
+    var full = st.species.filter(function (id) { return !st.repeat[id]; });
+    var rep  = st.species.filter(function (id) { return st.repeat[id]; });
+    return full.map(function (id) { return stopSpecies(byId[id]); }).join("") +
+      rep.map(function (id) { return alsoHere(byId[id], st.repeat[id]); }).join("");
+  }
+
+  // ── header ──
+  document.title = D.title;
+  document.getElementById("title").textContent = D.title;
+  document.getElementById("intro").textContent = D.intro;
+  // German / place lines: shown only when the curator filled them in (never machine-translated).
+  [["title-de", D.title_de], ["intro-de", D.intro_de], ["where", D.where], ["where-de", D.where_de]].forEach(function (p) {
+    var el = document.getElementById(p[0]);
+    if (p[1]) { el.textContent = p[1]; el.hidden = false; }
+  });
+  var km = D.walk.distance_m ? (D.walk.distance_m / 1000).toFixed(1) + " km" : "";
+  var hrs = D.walk.duration_min ? "about " + (Math.round(D.walk.duration_min / 30) / 2) + " h walking" : "";
+  document.getElementById("meta").textContent =
+    [km, hrs, D.walk.stops.length + " stops", D.species.length + " species"].filter(Boolean).join(" · ");
+  var cta = document.getElementById("cta");
+  cta.textContent = D.cta_label; cta.href = D.contact_url;
+
+  // ── tabs ──
+  var tabs = ["walk", "plants", "recipes", "taxonomy"];
+  var treeLoaded = false, map = null;
+  function show(name) {
+    if (tabs.indexOf(name) < 0) name = "walk";
+    tabs.forEach(function (t) {
+      document.getElementById("tab-" + t).setAttribute("aria-selected", t === name ? "true" : "false");
+      document.getElementById("panel-" + t).hidden = t !== name;
+    });
+    if (name === "taxonomy" && !treeLoaded) {
+      // Created on first open so the tree lays out at its real size.
+      var f = document.createElement("iframe");
+      f.src = "tree.html"; f.title = "Plant family tree";
+      document.getElementById("tree-frame-wrap").appendChild(f);
+      treeLoaded = true;
+    }
+    if (name === "walk" && map) setTimeout(function () { map.invalidateSize(); }, 0);
+    if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+  }
+  tabs.forEach(function (t) {
+    document.getElementById("tab-" + t).addEventListener("click", function () { show(t); });
+  });
+
+  // ── walk: stop cards in the app's walk-panel layout ──
+  var stopsEl = document.getElementById("stops");
+  stopsEl.innerHTML = D.walk.stops.map(function (st) {
+    // Plain numbered stop; toxicity is shown only on the plant (its badge).
+    return '<div class="walk-stop-card" id="stop-' + st.n + '">' +
+      '<div class="stop-head" data-stop="' + st.n + '"><span class="walk-stop-num">' + st.n + "</span>" +
+      (st.species.length > 1 ? st.species.length + " species here" : "Stop " + st.n) + "</div>" +
+      stopBody(st) + "</div>";
+  }).join("");
+
+  var markers = {};
+  if (window.L) {
+    map = L.map("map", { scrollWheelZoom: false });
+    // Same keyless base layers as the app (frontend/index.html _baseLayers). No API keys.
+    var base = {
+      "Standard": L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '© <a href="https://openstreetmap.org/copyright" target="_top">OpenStreetMap</a> contributors', maxZoom: 19 }),
+      "Satellite": L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+        attribution: "Tiles &copy; Esri &mdash; Source: Esri, USGS, AeroGRID, IGN, and the GIS User Community", maxZoom: 19 }),
+      "Topo": L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
+        attribution: 'Map data: &copy; <a href="https://openstreetmap.org/copyright" target="_top">OpenStreetMap</a> contributors, SRTM | Display: &copy; <a href="https://opentopomap.org" target="_top">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_top">CC-BY-SA</a>)',
+        maxZoom: 17, subdomains: ["a", "b", "c"] })
+    };
+    base["Standard"].addTo(map);
+    L.control.layers(base, null, { position: "topright", collapsed: true }).addTo(map);
+
+    // Locate me — browser geolocation, shown on the map only. Nothing is stored or sent.
+    var here = null;
+    var Locate = L.Control.extend({
+      options: { position: "topleft" },
+      onAdd: function () {
+        var b = L.DomUtil.create("button", "locate-btn");
+        b.type = "button"; b.title = "Show my location"; b.setAttribute("aria-label", "Show my location");
+        b.textContent = "◎";
+        L.DomEvent.disableClickPropagation(b);
+        L.DomEvent.on(b, "click", function () {
+          if (!navigator.geolocation) { alert("Location isn't available in this browser."); return; }
+          b.disabled = true;
+          navigator.geolocation.getCurrentPosition(function (pos) {
+            b.disabled = false;
+            var ll = [pos.coords.latitude, pos.coords.longitude];
+            if (here) here.remove();
+            here = L.layerGroup([
+              L.circle(ll, { radius: pos.coords.accuracy, color: "#6E8FA8", weight: 1, fillOpacity: 0.12 }),
+              L.circleMarker(ll, { radius: 7, color: "#fff", weight: 2, fillColor: "#6E8FA8", fillOpacity: 1 })
+            ]).addTo(map);
+            map.setView(ll, Math.max(map.getZoom(), 15));
+          }, function (err) {
+            b.disabled = false;
+            alert(err.code === 1 ? "Location permission was refused." : "Couldn't get your location.");
+          }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+        });
+        return b;
+      }
+    });
+    map.addControl(new Locate());
+    var bounds = [];
+    if (D.walk.line) {
+      var ll = D.walk.line.map(function (c) { return [c[1], c[0]]; });
+      var lineColour = getComputedStyle(document.documentElement).getPropertyValue("--app-forest").trim() || "#2d5016";
+      // As the app (frontend/index.html): routed parts solid; straight legs
+      // between stops (D.walk.straight_ranges, vertex ranges) dashed with a tooltip.
+      var at = 0;
+      function solid(a, b) {
+        if (b > a) L.polyline(ll.slice(a, b + 1), { color: lineColour, weight: 4, opacity: 0.9 }).addTo(map);
+      }
+      (D.walk.straight_ranges || []).forEach(function (r) {
+        solid(at, r[0]);
+        L.polyline(ll.slice(r[0], r[1] + 1), { color: lineColour, weight: 3.5, dashArray: "7 6", opacity: 0.9 })
+          .bindTooltip("Straight line between stops — no mapped footpath here", { sticky: true })
+          .addTo(map);
+        at = r[1];
+      });
+      solid(at, ll.length - 1);
+      bounds = bounds.concat(ll);
+    }
+    D.walk.stops.forEach(function (st) {
+      var icon = L.divIcon({ className: "", iconSize: [26, 26], html: '<div class="stop-pin">' + st.n + "</div>" });
+      var m = L.marker([st.lat, st.lng], { icon: icon, title: "Stop " + st.n })
+        .addTo(map)
+        .bindPopup('<div class="stop-head"><span class="walk-stop-num">' + st.n + "</span>Stop " + st.n + "</div>" +
+                   stopBody(st), { maxWidth: 290 });
+      markers[st.n] = m;
+      bounds.push([st.lat, st.lng]);
+    });
+    if (bounds.length) map.fitBounds(bounds, { padding: [20, 20] });
+  } else {
+    document.getElementById("map").innerHTML = '<p class="subtitle" style="padding:12px">Map could not load (offline?).</p>';
+  }
+  stopsEl.addEventListener("click", function (e) {
+    var h = e.target.closest(".stop-head[data-stop]");
+    if (!h || !map) return;
+    var m = markers[h.getAttribute("data-stop")];
+    document.getElementById("map").scrollIntoView({ behavior: "smooth", block: "center" });
+    map.setView(m.getLatLng(), Math.max(map.getZoom(), 16));
+    m.openPopup();
+  });
+
+  // ── plants: the app's species cards; tap → preview panel ──
+  var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var recipeBySpecies = {};
+  D.recipes.forEach(function (r) { recipeBySpecies[r.species_id] = r; });
+  function filterGroup(s) {
+    var k = s.badge.kind;
+    return (k === "toxic" || k === "deadly") ? "toxic" : (k === "edible" || k === "caution") ? k : "other";
+  }
+  var grid = document.getElementById("species-grid");
+  grid.innerHTML = D.species.map(function (s) {
+    return '<article class="species-card pick' + (s.toxic ? " toxic" : "") + '" role="button" tabindex="0"' +
+      ' data-sid="' + s.id + '" data-group="' + filterGroup(s) + '" aria-label="' + esc(s.en || s.sci) + '">' +
+      (s.thumb ? '<img class="photo" src="' + esc(s.thumb) + '" alt="" loading="lazy">' : '<div class="photo"></div>') +
+      '<div class="body"><div class="common">' + (s.toxic ? "☠ " : "") + esc(s.en || s.sci) + "</div>" +
+      (s.de ? '<div class="common-de">' + esc(s.de) + "</div>" : "") +
+      '<div class="sci-name">' + esc(s.sci) + "</div>" +
+      (s.family ? '<div class="family">' + esc(s.family) + "</div>" : "") + badge(s) + "</div></article>";
+  }).join("");
+
+  var chips = document.querySelectorAll(".chip");
+  Array.prototype.forEach.call(chips, function (c) {
+    c.addEventListener("click", function () {
+      var f = c.getAttribute("data-filter");
+      Array.prototype.forEach.call(chips, function (x) { x.setAttribute("aria-pressed", x === c ? "true" : "false"); });
+      Array.prototype.forEach.call(grid.children, function (card) {
+        card.hidden = !(f === "all" || card.getAttribute("data-group") === f);
+      });
+    });
+  });
+
+  var panel = document.getElementById("sp-panel"), scrim = document.getElementById("sp-scrim");
+  var panelBody = document.getElementById("sp-panel-body"), lastFocus = null;
+  function openPanel(sid) {
+    var s = byId[sid]; if (!s) return;
+    var photos = (s.photo ? [{ photo: s.photo, thumb: s.thumb }] : []).concat(s.extra || []);
+    var r = recipeBySpecies[s.id];
+    var w = "";
+    if (s.safety.toxic) w += '<div class="warn toxic"><strong>☠ Not safe to eat</strong>' + esc(s.safety.toxic) + "</div>";
+    if (s.safety.caution) w += '<div class="warn caution"><strong>⚠ Caution</strong>' + esc(s.safety.caution) + "</div>";
+    if (s.safety.preparation) w += '<div class="warn caution"><strong>⚠ Preparation</strong>' + esc(s.safety.preparation) + "</div>";
+    if (s.safety.look_alike) w += '<div class="warn lookalike"><strong>Look-alikes</strong>' + esc(s.safety.look_alike) + "</div>";
+    panelBody.innerHTML =
+      (photos.length ? '<img class="sp-main" id="sp-main" src="' + esc(photos[0].photo) + '" data-full="' + esc(photos[0].photo) + '" alt="' + esc(s.en || s.sci) + '">' : "") +
+      (photos.length > 1 ? '<div class="sp-thumbs">' + photos.map(function (p, i) {
+        return '<button class="sp-thumb' + (i === 0 ? " on" : "") + '" data-photo="' + esc(p.photo) + '" aria-label="Photo ' + (i + 1) + '">' +
+               '<img src="' + esc(p.thumb) + '" alt=""></button>';
+      }).join("") + "</div>" : "") +
+      '<div class="sp-text species-card">' +
+      '<div class="common" id="sp-panel-title">' + (s.toxic ? "☠ " : "") + esc(s.en || s.sci) + "</div>" +
+      (s.de ? '<div class="common-de">' + esc(s.de) + "</div>" : "") +
+      '<div class="sci-name">' + esc(s.sci) + "</div>" +
+      (s.family ? '<div class="family">' + esc(s.family) + "</div>" : "") +
+      (s.months && s.months.length ? '<div class="family">Seen on this walk: ' + s.months.map(function (m) { return MONTHS[m - 1]; }).join(", ") + "</div>" : "") +
+      badge(s) +
+      // Fix B: the species warnings (w) sit right after the recipe in this panel — not repeated.
+      (r ? '<div class="walk-stop-recipe"><strong>' + esc(r.dish) + '</strong><div class="line">' + esc(r.line) + "</div></div>" : "") +
+      w + "</div>";
+    lastFocus = document.activeElement;
+    panel.hidden = false; scrim.hidden = false;
+    document.body.classList.add("sp-open");
+    document.getElementById("sp-close").focus();
+  }
+  function closePanel() {
+    panel.hidden = true; scrim.hidden = true;
+    document.body.classList.remove("sp-open");
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  grid.addEventListener("click", function (e) {
+    var card = e.target.closest(".species-card.pick");
+    if (card) openPanel(+card.getAttribute("data-sid"));
+  });
+  grid.addEventListener("keydown", function (e) {
+    var card = e.target.closest(".species-card.pick");
+    if (card && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openPanel(+card.getAttribute("data-sid")); }
+  });
+  panelBody.addEventListener("click", function (e) {
+    var b = e.target.closest(".sp-thumb");
+    if (!b) return;
+    var main = document.getElementById("sp-main");
+    main.src = b.getAttribute("data-photo"); main.setAttribute("data-full", b.getAttribute("data-photo"));
+    Array.prototype.forEach.call(panelBody.querySelectorAll(".sp-thumb"), function (x) { x.classList.toggle("on", x === b); });
+  });
+  document.getElementById("sp-close").addEventListener("click", closePanel);
+  scrim.addEventListener("click", closePanel);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !panel.hidden && !document.getElementById("lightbox").classList.contains("open")) closePanel();
+  });
+
+  // ── recipes: every public recipe (D.recipe_bank, export.build_recipe_bank) ──
+  // Teaser only — dish, plant, season, the one-line summary, ⚠ for caution and
+  // the curator warnings that travel with culinary content (Fix B, recipeWarn);
+  // never ingredients or method. "Full recipe →" only with a website link.
+  // Filters use the visitor's own date for "In season now".
+  var SEASONS = ["spring", "summer", "autumn", "winter", "year-round"];
+  var SEASON_LABEL = { spring: "Spring", summer: "Summer", autumn: "Autumn", winter: "Winter", "year-round": "Year-round" };
+  var TYPE_LABEL = { drink: "Drinks", ferment: "Ferments", condiment: "Condiments", preserve: "Preserves",
+                     main: "Mains", side: "Sides", sweet: "Sweet", other: "Other" };
+  function seasonNow() {
+    var m = new Date().getMonth();
+    return m <= 1 || m === 11 ? "winter" : m <= 4 ? "spring" : m <= 7 ? "summer" : "autumn";
+  }
+  function bankTile(r) {
+    return '<article class="species-card recipe-tile"><div class="body">' +
+      '<div class="dish">' + esc(r.dish) + "</div>" +
+      '<div class="plant">' + esc(r.en || r.sci) + (r.en ? " · <em>" + esc(r.sci) + "</em>" : "") + "</div>" +
+      (r.caution ? '<span class="badge caution">⚠ Caution</span>' : "") +
+      (r.line ? '<div class="line">' + esc(r.line) + "</div>" : "") +
+      '<div class="meta">' + esc(SEASON_LABEL[r.season] || r.season) + " · " + esc(TYPE_LABEL[r.type] || "Other") + "</div>" +
+      recipeWarn(r) +
+      (r.url ? '<a class="full" href="' + esc(r.url) + '" target="_blank" rel="noopener">Full recipe →</a>' : "") +
+      "</div></article>";
+  }
+  function byDish(a, b) { return a.dish.localeCompare(b.dish); }
+  function bankGroups(view, list) {
+    var out = [];
+    function add(label, items) { if (items.length) out.push({ label: label, items: items.slice().sort(byDish) }); }
+    if (view === "now") {
+      var s = seasonNow();
+      add("In season now — " + SEASON_LABEL[s], list.filter(function (r) { return r.season === s; }));
+      add(SEASON_LABEL["year-round"], list.filter(function (r) { return r.season === "year-round"; }));
+    } else if (view === "season") {
+      SEASONS.forEach(function (s) { add(SEASON_LABEL[s], list.filter(function (r) { return r.season === s; })); });
+    } else if (view === "type") {
+      Object.keys(TYPE_LABEL).forEach(function (t) { add(TYPE_LABEL[t], list.filter(function (r) { return r.type === t; })); });
+    } else if (view === "recent") {
+      out.push({ label: "Recently added", items: list.slice().sort(function (a, b) {
+        return (b.approved_at || "").localeCompare(a.approved_at || "") || byDish(a, b); }) });
+    } else {
+      out.push({ label: "A–Z", items: list.slice().sort(byDish) });
+    }
+    return out;
+  }
+  var rg = document.getElementById("recipe-grid");
+  var rfView = document.getElementById("rf-view");
+  function renderBank() {
+    var bank = D.recipe_bank || [];
+    if (!bank.length) { rg.innerHTML = '<p class="subtitle">Recipes to follow.</p>'; return; }
+    rg.innerHTML = bankGroups(rfView.value, bank).map(function (g) {
+      return '<h3 class="rf-group">' + esc(g.label) + "</h3>" + '<div class="grid">' + g.items.map(bankTile).join("") + "</div>";
+    }).join("") || '<p class="subtitle">No recipes in this view.</p>';
+  }
+  rfView.addEventListener("change", renderBank);
+  renderBank();
+
+  // ── footer ──
+  document.getElementById("disclaimer-h").textContent = D.disclaimer.heading;
+  document.getElementById("disclaimer").innerHTML = D.disclaimer.paras.map(function (p) { return "<p>" + esc(p) + "</p>"; }).join("");
+  document.getElementById("footer-links").innerHTML =
+    '<a href="' + esc(D.contact_url) + '" target="_top" rel="noopener">Contact</a>' +
+    (D.impressum_url ? '<a href="' + esc(D.impressum_url) + '" target="_top" rel="noopener">Impressum</a>'
+                     : '<span class="placeholder">Impressum (link to follow)</span>') +
+    (D.datenschutz_url ? '<a href="' + esc(D.datenschutz_url) + '" target="_top" rel="noopener">Datenschutz</a>'
+                       : '<span class="placeholder">Datenschutz (link to follow)</span>');
+
+  // ── photo lightbox ──
+  var lb = document.getElementById("lightbox");
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (t.matches && t.matches("img[data-full]")) { lb.querySelector("img").src = t.getAttribute("data-full"); lb.classList.add("open"); }
+    else if (t === lb || t.parentNode === lb) { lb.classList.remove("open"); }
+  });
+
+  show((location.hash || "#walk").slice(1));
+})();
+</script>
+</body>
+</html>

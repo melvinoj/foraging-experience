@@ -1,7 +1,18 @@
 {
   "version": 1,
-  "featured": "morning-sunshine-gresgen-to-adelsberg",
+  "featured": "ewden-brook-circular",
   "walks": [
+    {
+      "slug": "ewden-brook-circular",
+      "title": "Ewden brook circular",
+      "url": "w/ewden-brook-circular/",
+      "published_at": "2026-10-29T05:45:26.796846+00:00",
+      "content_digest": "8345b3efa5e67069bfbf0fc43bec3d5fe0087ceba4bc27dc4b59eb546d33c6c5",
+      "species": 3,
+      "stops": 3,
+      "distance_km": 3.8,
+      "image": "w/ewden-brook-circular/photos/223.jpg"
+    },
     {
       "slug": "morning-sunshine-gresgen-to-adelsberg",
       "title": "Morning sunshine Gresgen to Adelsberg",
